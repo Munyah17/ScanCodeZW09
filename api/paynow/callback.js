@@ -1,33 +1,23 @@
 /**
  * POST /api/paynow/callback
- *
- * Paynow calls this URL (your PAYNOW_RESULT_URL) when a payment status changes.
- * This endpoint MUST be publicly reachable. For local dev, use ngrok:
- *   npx ngrok http 3000
- *   then set PAYNOW_RESULT_URL=https://xxxx.ngrok.io/api/paynow/callback
- *
- * Paynow sends URL-encoded POST with fields:
- *   reference, amount, paynowreference, pollurl, status, hash
- *
- * We verify the hash before trusting the status.
+ * Paynow POSTs URL-encoded payment status updates here.
+ * Set PAYNOW_RESULT_URL=https://YOUR-SITE.netlify.app/api/paynow/callback
  */
 
 import { verifyCallback } from '../_utils/paynow.js';
-import { supabaseAdmin } from '../_utils/supabase-admin.js';
+import { supabaseAdmin }  from '../_utils/supabase-admin.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    // Paynow may also do a GET health-check
-    return res.status(200).send('OK');
-  }
+export default async (req) => {
+  if (req.method !== 'POST') return new Response('OK', { status: 200 });
 
-  const params = req.body ?? {};
+  // Paynow sends application/x-www-form-urlencoded
+  const text   = await req.text();
+  const params = Object.fromEntries(new URLSearchParams(text));
 
-  // Verify the Paynow signature
   const valid = verifyCallback(params, process.env.PAYNOW_INTEGRATION_KEY);
   if (!valid) {
     console.warn('[Paynow callback] Invalid hash — possible forgery. Params:', params);
-    return res.status(400).send('Invalid hash');
+    return new Response('Invalid hash', { status: 400 });
   }
 
   const { reference, status, amount, paynowreference } = params;
@@ -38,15 +28,11 @@ export default async function handler(req, res) {
   if (normalizedStatus === 'paid' || normalizedStatus === 'awaiting delivery') {
     await activateFromReference(reference, normalizedStatus, amount, paynowreference);
   } else if (['cancelled', 'disputed', 'refunded'].includes(normalizedStatus)) {
-    await supabaseAdmin
-      .from('payments')
-      .update({ status: normalizedStatus })
-      .eq('reference', reference);
+    await supabaseAdmin.from('payments').update({ status: normalizedStatus }).eq('reference', reference);
   }
 
-  // Paynow expects a plain-text "OK" response
-  return res.status(200).send('OK');
-}
+  return new Response('OK', { status: 200 });
+};
 
 async function activateFromReference(reference, status, amount, paynowRef) {
   const { data: payment } = await supabaseAdmin
@@ -55,27 +41,29 @@ async function activateFromReference(reference, status, amount, paynowRef) {
     .eq('reference', reference)
     .single();
 
-  if (!payment) {
-    console.warn('[Paynow callback] Unknown reference:', reference);
-    return;
-  }
-
-  if (payment.status === 'paid') return; // Already processed
+  if (!payment) { console.warn('[Paynow callback] Unknown reference:', reference); return; }
+  if (payment.status === 'paid') return;
 
   await supabaseAdmin.from('payments').update({
-    status:          'paid',
-    paynow_ref:      paynowRef,
-    amount_usd:      parseFloat(amount) || payment.amount_usd,
-    paid_at:         new Date().toISOString(),
+    status:     'paid',
+    paynow_ref: paynowRef,
+    amount_usd: parseFloat(amount) || payment.amount_usd,
+    paid_at:    new Date().toISOString(),
   }).eq('reference', reference);
 
-  const endDate = new Date();
-  endDate.setMonth(endDate.getMonth() + 1);
+  const isLifetime = payment.plan === 'lifetime';
+  const update = { subscription_type: payment.plan };
+  if (!isLifetime) {
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 1);
+    update.subscription_end_date = endDate.toISOString();
+  } else {
+    update.subscription_end_date = null;
+  }
 
-  await supabaseAdmin.from('profiles').update({
-    subscription_type:     payment.plan,
-    subscription_end_date: endDate.toISOString(),
-  }).eq('id', payment.user_id);
+  await supabaseAdmin.from('profiles').update(update).eq('id', payment.user_id);
 
-  console.log(`[Paynow callback] Activated ${payment.plan} for user ${payment.user_id}`);
+  console.log(`[Paynow callback] Activated ${payment.plan} for user ${payment.user_id}${isLifetime ? ' (lifetime)' : ''}`);
 }
+
+export const config = { path: '/api/paynow/callback' };

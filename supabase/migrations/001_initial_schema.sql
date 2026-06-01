@@ -45,10 +45,11 @@ create policy "Admins can update all profiles"
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
-  insert into public.profiles (id, username)
+  insert into public.profiles (id, username, subscription_type)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1))
+    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'plan', 'free')
   );
   return new;
 end;

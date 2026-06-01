@@ -1,0 +1,25 @@
+[build]
+  command   = "npm run build"
+  publish   = "dist"
+  functions = "api"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  node_bundler = "esbuild"
+
+# ── Local dev (netlify dev) port lock ──────────────────────────────────────
+# ScanCodeZW is assigned: Frontend=4184, Functions/API server=3004
+[dev]
+  framework    = "vite"
+  command      = "npm run dev"
+  targetPort   = 5402   # ScanCodeZW Vite frontend — dedicated, do not reuse
+  port         = 3042   # ScanCodeZW API server — dedicated, do not reuse
+  autoLaunch   = false
+
+# SPA fallback — must be last; Netlify evaluates functions before redirects
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

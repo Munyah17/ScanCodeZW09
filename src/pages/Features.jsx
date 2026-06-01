@@ -195,7 +195,7 @@ export default function Features() {
           <p>Create your free account and generate your first barcode in under two minutes.</p>
           <div className="cta-buttons" style={{ justifyContent: 'center' }}>
             <Link to="/register" className="btn btn-primary btn-lg">Create Free Account</Link>
-            <Link to="/pricing" className="btn btn-outline btn-lg">Compare Plans</Link>
+            <Link to="/pricing" className="btn btn-outline btn-lg" style={{ color: 'purple', borderColor: 'purple' }}>Compare Plans</Link>
           </div>
         </section>
       </main>

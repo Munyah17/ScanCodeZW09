@@ -199,17 +199,16 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating button */}
-      {panelStatus === STATUS.CLOSED && (
-        <button
-          className="chat-widget-fab"
-          onClick={() => setPanelStatus(user ? STATUS.WAITING : STATUS.INTRO)}
-          aria-label="Open live chat"
-        >
-          <i className="fas fa-comments"></i>
-          <span className="chat-fab-label">Support</span>
-        </button>
-      )}
+      {/* WhatsApp floating button */}
+      <a
+        href="https://wa.me/263773909307"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="chat-widget-fab whatsapp-fab"
+        aria-label="Chat on WhatsApp"
+      >
+        <i className="fab fa-whatsapp"></i>
+      </a>
 
       {/* Panel */}
       {panelStatus !== STATUS.CLOSED && (

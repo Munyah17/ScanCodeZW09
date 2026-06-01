@@ -1,40 +1,29 @@
-/**
- * GET /api/admin/plans  — list all subscription plans
- * PUT /api/admin/plans  — update a plan's price, limits, features
- * Requires admin JWT.
- */
-
 import { requireAdmin }  from '../_utils/require-admin.js';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
+import { j }             from '../_utils/response.js';
 
-export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
+export default async (req) => {
+  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
 
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
+  const { auth, error } = await requireAdmin(req);
+  if (error) return error;
 
   if (req.method === 'GET') {
-    const { data, error } = await supabaseAdmin
+    const { data, error: dbErr } = await supabaseAdmin
       .from('subscription_plans')
       .select('*')
       .order('price_usd', { ascending: true, nullsLast: true });
 
-    if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json(data);
+    if (dbErr) return j({ error: dbErr.message }, 500);
+    return j(data);
   }
 
   if (req.method === 'PUT') {
-    const {
-      id,
-      name,
-      price_usd,
-      max_products,
-      max_variations_per_product,
-      features,
-      active,
-    } = req.body ?? {};
+    let body;
+    try { body = await req.json(); } catch { body = {}; }
+    const { id, name, price_usd, max_products, max_variations_per_product, features, active } = body;
 
-    if (!id) return res.status(400).json({ error: 'Plan id is required.' });
+    if (!id) return j({ error: 'Plan id is required.' }, 400);
 
     const update = {};
     if (name                       !== undefined) update.name                       = name;
@@ -44,14 +33,12 @@ export default async function handler(req, res) {
     if (features                   !== undefined) update.features                   = features;
     if (active                     !== undefined) update.active                     = active;
 
-    const { error } = await supabaseAdmin
-      .from('subscription_plans')
-      .update(update)
-      .eq('id', id);
-
-    if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json({ success: true });
+    const { error: dbErr } = await supabaseAdmin.from('subscription_plans').update(update).eq('id', id);
+    if (dbErr) return j({ error: dbErr.message }, 500);
+    return j({ success: true });
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
-}
+  return j({ error: 'Method not allowed' }, 405);
+};
+
+export const config = { path: '/api/admin/plans' };

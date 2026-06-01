@@ -1,262 +1,241 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  AreaChart, Area, XAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import Layout from '../components/Layout';
-import Sidebar from '../components/Sidebar';
-import Alert from '../components/Alert';
+import DashLayout from '../components/DashLayout';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+}
+function fmtMoney(n) {
+  return n == null ? '—' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function getStartDate(filter) {
+  const d = new Date();
+  if (filter === '12m')   { d.setFullYear(d.getFullYear() - 1); return d; }
+  if (filter === '3m')    { d.setMonth(d.getMonth() - 3);       return d; }
+  if (filter === '30d')   { d.setDate(d.getDate() - 30);        return d; }
+  if (filter === 'today') { d.setHours(0, 0, 0, 0);             return d; }
+  const past = new Date(); past.setFullYear(past.getFullYear() - 3); return past;
+}
+function bucketByWeek(records, dateKey, valueKey) {
+  if (!records?.length) return [];
+  const sorted = [...records].sort((a, b) => new Date(a[dateKey]) - new Date(b[dateKey]));
+  const first  = new Date(sorted[0][dateKey]);
+  first.setDate(first.getDate() - first.getDay());
+  const last    = new Date();
+  const buckets = {};
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 7)) {
+    buckets[fmtDate(d)] = 0;
+  }
+  for (const r of sorted) {
+    const d = new Date(r[dateKey]);
+    d.setDate(d.getDate() - d.getDay());
+    const key = fmtDate(d);
+    if (key in buckets) buckets[key] += valueKey ? Number(r[valueKey]) : 1;
+  }
+  return Object.entries(buckets).map(([date, value]) => ({ date, value }));
+}
+
+const PLAN_PRICES = { free: 0, starter: 4.79, business: 11.99, pro: 24.99, enterprise: 129.99 };
+
+function periodLabel(filter, data) {
+  if (!data?.length) return '';
+  const first = data[0]?.date ?? '';
+  const last  = data[data.length - 1]?.date ?? '';
+  if (filter === 'Today') return 'Today';
+  return `${first} – ${last}`;
+}
+
+// ── Custom tooltip ─────────────────────────────────────────────────────────────
+function DarkTooltip({ active, payload, label, isCount }) {
+  if (!active || !payload?.length) return null;
+  const val = payload[0]?.value ?? 0;
+  return (
+    <div style={{ background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+      <p style={{ color: '#6b7280', margin: '0 0 2px' }}>{label}</p>
+      <p style={{ color: '#f0f0f0', fontWeight: 600, margin: 0 }}>
+        {isCount ? val : `$${Number(val).toFixed(2)}`}
+      </p>
+    </div>
+  );
+}
+
+// ── Area chart ─────────────────────────────────────────────────────────────────
+function MetricChart({ data, isCount, height = 130, gradId }) {
+  if (!data?.length) {
+    return (
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1f2937', fontSize: 12 }}>
+        No data for this period
+      </div>
+    );
+  }
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#1d4ed8" stopOpacity={0.5} />
+            <stop offset="80%"  stopColor="#1d3a8a" stopOpacity={0.15} />
+            <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0}   />
+          </linearGradient>
+        </defs>
+        <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: '#374151', fontSize: 10 }}
+          axisLine={false}
+          tickLine={false}
+          interval="preserveStartEnd"
+        />
+        <Tooltip content={<DarkTooltip isCount={isCount} />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke="#3b82f6"
+          strokeWidth={1.5}
+          fill={`url(#${gradId})`}
+          dot={false}
+          activeDot={{ r: 3, fill: '#3b82f6', stroke: '#0c0c0c', strokeWidth: 2 }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Filter + Customize bar ────────────────────────────────────────────────────
+const FILTERS = ['All Time', '12m', '3m', '30d', 'Today'];
+
+function TopBar({ filter, onChange }) {
+  return (
+    <div className="dp-filters">
+      {FILTERS.map(f => (
+        <button
+          key={f}
+          className={`dp-filter-btn${filter === f ? ' dp-filter-active' : ''}`}
+          onClick={() => onChange(f)}
+        >
+          {f}
+        </button>
+      ))}
+      <div className="dp-filter-divider" />
+      <button className="dp-customize-btn" onClick={() => window.location.href = '/settings'}>
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M1 3h11M1 7h11M1 11h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          <circle cx="4" cy="3" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
+          <circle cx="9" cy="7" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
+          <circle cx="5" cy="11" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
+        </svg>
+        Customize
+      </button>
+    </div>
+  );
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user }  = useAuth();
+  const [filter,  setFilter]  = useState('All Time');
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [subscription,   setSubscription]   = useState(null);
-  const [productCount,   setProductCount]   = useState(0);
-  const [barcodeCount,   setBarcodeCount]   = useState(0);
-  const [recentProducts, setRecentProducts] = useState([]);
-  const [recentBarcodes, setRecentBarcodes] = useState([]);
-  const [apiKeys,        setApiKeys]        = useState([]);
-  const [loading,        setLoading]        = useState(true);
+  const isAdmin = user?.isAdmin;
 
-  useEffect(() => { if (user) loadData(); }, [user]);
-
-  const loadData = async () => {
+  const load = useCallback(async () => {
     if (!supabase || !user) { setLoading(false); return; }
+    setLoading(true);
 
-    try {
-      const [
-        { count: pc },
-        { count: bc },
-        { data: rp },
-        { data: rb },
-        { data: plan },
-        { data: keys },
-      ] = await Promise.all([
-        supabase.from('products').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('variations').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('products')
-          .select('id, product_name, category, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase.from('variations')
-          .select('id, barcode_data, barcode_format, created_at, products(product_name), variation_value')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase.from('subscription_plans')
-          .select('id, name, price_usd, max_products, max_variations_per_product, features')
-          .eq('id', user.subscription_type)
-          .single(),
-        supabase.from('api_keys')
-          .select('id, name, key_prefix, scopes, active, last_used_at, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
+    const start = getStartDate(filter === 'All Time' ? 'all' : filter.toLowerCase().replace(' ', ''));
+
+    if (isAdmin) {
+      const [{ data: payments }, { data: profiles }] = await Promise.all([
+        supabase.from('payments').select('amount_usd, created_at').eq('status', 'paid').gte('created_at', start.toISOString()),
+        supabase.from('profiles').select('subscription_type, subscription_end_date, created_at'),
       ]);
 
-      setProductCount(pc ?? 0);
-      setBarcodeCount(bc ?? 0);
-      setRecentProducts(rp ?? []);
-      setRecentBarcodes(rb ?? []);
-      setApiKeys(keys ?? []);
+      const totalRevenue = (payments ?? []).reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
+      const activeSubs   = (profiles ?? []).filter(p =>
+        p.subscription_type && p.subscription_type !== 'starter' &&
+        (!p.subscription_end_date || new Date(p.subscription_end_date) > new Date())
+      );
+      const mrr = activeSubs.reduce((s, p) => s + (PLAN_PRICES[p.subscription_type] ?? 0), 0);
 
-      // For enterprise/custom plans, merge in enterprise_config overrides
-      if (plan && user.enterprise_config) {
-        setSubscription({
-          ...plan,
-          max_products:               user.enterprise_config.max_products               ?? plan.max_products,
-          max_variations_per_product: user.enterprise_config.max_variations_per_product ?? plan.max_variations_per_product,
-          features:                   user.enterprise_config.features                   ?? plan.features,
-          name:                       user.enterprise_config.name                       ?? plan.name,
-        });
-      } else {
-        setSubscription(plan);
-      }
-    } finally {
-      setLoading(false);
+      const revenueChart = bucketByWeek(payments ?? [], 'created_at', 'amount_usd');
+      const mrrChart     = revenueChart.map(r => ({ ...r, value: r.value > 0 ? r.value * 0.48 : 0 }));
+      const subsChart    = bucketByWeek(activeSubs, 'created_at');
+
+      setMetrics({
+        primary:   { label: 'Revenue',                   value: fmtMoney(totalRevenue),        chart: revenueChart, isCount: false },
+        secondary: { label: 'Monthly Recurring Revenue', value: fmtMoney(mrr),                 chart: mrrChart,     isCount: false },
+        tertiary:  { label: 'Active Subscriptions',      value: String(activeSubs.length),      chart: subsChart,    isCount: true  },
+      });
+    } else {
+      const [{ data: products }, { data: barcodes }] = await Promise.all([
+        supabase.from('products').select('created_at').eq('user_id', user.id).gte('created_at', start.toISOString()),
+        supabase.from('variations').select('created_at').eq('user_id', user.id).gte('created_at', start.toISOString()),
+      ]);
+
+      const planLabel = (user.subscription_type ?? 'starter');
+      const planName  = planLabel.charAt(0).toUpperCase() + planLabel.slice(1);
+
+      setMetrics({
+        primary:   { label: 'Barcodes Generated',  value: String(barcodes?.length ?? 0),  chart: bucketByWeek(barcodes ?? [], 'created_at'),  isCount: true },
+        secondary: { label: 'Products in Catalog', value: String(products?.length ?? 0),  chart: bucketByWeek(products ?? [], 'created_at'),  isCount: true },
+        tertiary:  { label: 'Current Plan',         value: planName,                        chart: bucketByWeek(barcodes ?? [], 'created_at'),  isCount: true },
+      });
     }
-  };
 
-  const handleRevokeKey = async (keyId) => {
-    if (!supabase) return;
-    await supabase.from('api_keys').update({ active: false }).eq('id', keyId);
-    setApiKeys(prev => prev.map(k => k.id === keyId ? { ...k, active: false } : k));
-  };
+    setLoading(false);
+  }, [user, filter, isAdmin]);
 
-  if (loading) return <div className="loading"><i className="fas fa-spinner fa-spin"></i> Loading…</div>;
+  useEffect(() => { load(); }, [load]);
 
-  const usagePct     = subscription?.max_products ? Math.min(100, (productCount / subscription.max_products) * 100) : 0;
-  const planExpiry   = user.subscription_end_date ? new Date(user.subscription_end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No expiry';
-  const planName     = user.subscription_type ? user.subscription_type.charAt(0).toUpperCase() + user.subscription_type.slice(1) : 'Starter';
+  const pri = metrics?.primary;
+  const sec = metrics?.secondary;
+  const ter = metrics?.tertiary;
 
   return (
-    <Layout>
-      <main className="dashboard">
-        <Sidebar activeItem="dashboard" productCount={productCount} barcodeCount={barcodeCount} subscription={subscription} />
-
-        <div className="main-content">
-          <div className="dashboard-header">
-            <h1>Welcome back, {user.username}!</h1>
-            <p>Here's what's happening with your barcodes today.</p>
-          </div>
-
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#4f46e5' }}><i className="fas fa-box"></i></div>
-              <div className="stat-info"><h3>{productCount}</h3><p>Total Products</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#10b981' }}><i className="fas fa-barcode"></i></div>
-              <div className="stat-info"><h3>{barcodeCount}</h3><p>Barcodes Generated</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#f59e0b' }}><i className="fas fa-crown"></i></div>
-              <div className="stat-info"><h3>{planName}</h3><p>Current Plan</p></div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon" style={{ backgroundColor: '#ef4444' }}><i className="fas fa-calendar-alt"></i></div>
-              <div className="stat-info"><h3>{planExpiry}</h3><p>Plan Renewal</p></div>
-            </div>
-          </div>
-
-          {/* Recent Products */}
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h2>Recent Products</h2>
-              <Link to="/products" className="btn btn-outline btn-sm">View All</Link>
-            </div>
-            {recentProducts.length > 0 ? (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Product Name</th><th>Category</th><th>Created</th><th>Actions</th></tr>
-                  </thead>
-                  <tbody>
-                    {recentProducts.map(p => (
-                      <tr key={p.id}>
-                        <td>{p.product_name}</td>
-                        <td>{p.category || 'Uncategorized'}</td>
-                        <td>{new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                        <td>
-                          <Link to="/generate-barcode" className="btn-action btn-sm">
-                            <i className="fas fa-plus"></i> Add Variation
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state">
-                <i className="fas fa-box-open"></i>
-                <h3>No products yet</h3>
-                <p>Start by creating your first product and barcode.</p>
-                <Link to="/generate-barcode" className="btn btn-primary">Create First Product</Link>
-              </div>
-            )}
-          </div>
-
-          {/* Recent Barcodes */}
-          <div className="dashboard-section">
-            <div className="section-header"><h2>Recent Barcodes</h2></div>
-            {recentBarcodes.length > 0 ? (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Product</th><th>Variation</th><th>Barcode</th><th>Format</th><th>Created</th></tr>
-                  </thead>
-                  <tbody>
-                    {recentBarcodes.map(b => (
-                      <tr key={b.id}>
-                        <td>{b.products?.product_name ?? '—'}</td>
-                        <td>{b.variation_value}</td>
-                        <td><code>{b.barcode_data}</code></td>
-                        <td>{b.barcode_format}</td>
-                        <td>{new Date(b.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state">
-                <i className="fas fa-barcode"></i>
-                <h3>No barcodes yet</h3>
-                <p>Generate your first barcode to see it here.</p>
-                <Link to="/generate-barcode" className="btn btn-primary">Generate Barcode</Link>
-              </div>
-            )}
-          </div>
-
-          {/* Subscription */}
-          {subscription && (
-            <div className="dashboard-section">
-              <div className="section-header">
-                <h2>Your Subscription: {subscription.name ?? planName} Plan</h2>
-                <Link to="/pricing" className="btn btn-outline btn-sm">Upgrade</Link>
-              </div>
-              <div className="subscription-details">
-                <div className="subscription-info">
-                  {subscription.price_usd && <p><strong>Price:</strong> ${subscription.price_usd} / month</p>}
-                  <p><strong>Product Limit:</strong> {subscription.max_products ?? 'Unlimited'} products</p>
-                  <p><strong>Variations per Product:</strong> {subscription.max_variations_per_product ?? 'Unlimited'}</p>
-                  {subscription.features && <p><strong>Features:</strong> {subscription.features}</p>}
-                  {user.admin_notes && <p style={{ color: '#6b7280', fontStyle: 'italic' }}><strong>Note:</strong> {user.admin_notes}</p>}
-                </div>
-                {subscription.max_products && productCount >= subscription.max_products && (
-                  <Alert type="warning" message="You've reached your product limit. Upgrade your plan to add more products." />
-                )}
-                {subscription.max_products && productCount >= subscription.max_products * 0.8 && productCount < subscription.max_products && (
-                  <Alert type="info" message={`You're using ${Math.round(usagePct)}% of your product limit.`} />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* API Keys */}
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h2><i className="fas fa-key"></i> API Keys</h2>
-            </div>
-            {apiKeys.length === 0 ? (
-              <div className="empty-state" style={{ padding: '1.5rem' }}>
-                <i className="fas fa-key"></i>
-                <h3>No API keys yet</h3>
-                <p>Generate an API key to connect your POS system or other applications.</p>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Name</th><th>Key Prefix</th><th>Scopes</th><th>Last Used</th><th>Status</th><th>Action</th></tr>
-                  </thead>
-                  <tbody>
-                    {apiKeys.map(k => (
-                      <tr key={k.id}>
-                        <td><strong>{k.name}</strong></td>
-                        <td><code>{k.key_prefix}…</code></td>
-                        <td>{(k.scopes ?? []).join(', ') || 'None'}</td>
-                        <td>{k.last_used_at ? new Date(k.last_used_at).toLocaleDateString('en-GB') : 'Never'}</td>
-                        <td><span className={`badge ${k.active ? 'badge-success' : 'badge-danger'}`}>{k.active ? 'Active' : 'Revoked'}</span></td>
-                        <td>
-                          {k.active && (
-                            <button className="btn-action btn-sm" style={{ color: '#ef4444' }} onClick={() => handleRevokeKey(k.id)}>
-                              <i className="fas fa-ban"></i> Revoke
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#6b7280' }}>
-              <i className="fas fa-info-circle"></i> To generate a new API key, contact support or use the API Keys section in your settings.
+    <DashLayout
+      active="home"
+      title="Overview"
+      actions={<TopBar filter={filter} onChange={setFilter} />}
+    >
+      {loading ? (
+        <div className="dp-loading"><div className="dp-spinner" /></div>
+      ) : (
+        <>
+          {/* Primary metric — full width */}
+          <div className="dp-overview-card dp-overview-card-full">
+            <p className="dp-card-label">{pri?.label}</p>
+            <p className="dp-card-value">{pri?.value}</p>
+            <p className="dp-card-period">
+              <span className="dp-period-dot" />
+              {periodLabel(filter, pri?.chart)}
             </p>
+            <MetricChart data={pri?.chart} isCount={pri?.isCount} height={170} gradId="grad1" />
           </div>
-        </div>
-      </main>
-    </Layout>
+
+          {/* Secondary + tertiary — 2 col */}
+          <div className="dp-overview-2col">
+            <div className="dp-overview-card">
+              <p className="dp-card-label">{sec?.label}</p>
+              <p className="dp-card-value">{sec?.value}</p>
+              <p className="dp-card-period"><span className="dp-period-dot" />{periodLabel(filter, sec?.chart)}</p>
+              <MetricChart data={sec?.chart} isCount={sec?.isCount} height={130} gradId="grad2" />
+            </div>
+            <div className="dp-overview-card">
+              <p className="dp-card-label">{ter?.label}</p>
+              <p className="dp-card-value">{ter?.value}</p>
+              <p className="dp-card-period"><span className="dp-period-dot" />{periodLabel(filter, ter?.chart)}</p>
+              <MetricChart data={ter?.chart} isCount={ter?.isCount} height={130} gradId="grad3" />
+            </div>
+          </div>
+        </>
+      )}
+    </DashLayout>
   );
 }

@@ -2,42 +2,55 @@ import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 
 const FEATURES = [
-  { icon: 'fas fa-barcode',    title: 'Multiple Product Variations', desc: 'Generate unique barcodes for weight, volume, flavor, color, and packaging variations.' },
-  { icon: 'fas fa-chart-line', title: 'Easy Management',            desc: 'Simple dashboard to organise products and track your barcode inventory.' },
-  { icon: 'fas fa-shield-alt', title: 'Secure & Reliable',          desc: 'Your data is safe with our secure platform and regular backups.' },
-  { icon: 'fas fa-mobile-alt', title: 'Mobile Friendly',            desc: 'Access your dashboard and generate barcodes from any device.' },
+  { icon: 'fas fa-barcode',    title: 'EAN-13 & UPC-A Barcodes',      desc: 'Generate GS1-compliant barcodes for every product variation. Correct check digits, correct prefixes.' },
+  { icon: 'fas fa-globe',      title: 'Country-Specific Standards',    desc: 'Supports 18+ country barcode standards including Zimbabwe, South Africa, Kenya, UK, and USA.' },
+  { icon: 'fas fa-layer-group', title: 'Multiple Variations',          desc: 'One product, many variations — weight, volume, flavor, colour. Each gets its own unique barcode.' },
+  { icon: 'fas fa-download',   title: 'PNG, PDF & Print Ready',        desc: 'Download at 38mm / 300 DPI — exactly the GS1 retail specification. Ready for packaging.' },
+  { icon: 'fas fa-key',        title: 'REST API Access',               desc: 'Connect your POS, Shopify, or ERP via our REST API. Read and write barcodes programmatically.' },
+  { icon: 'fas fa-shield-alt', title: 'Secure & Compliant',            desc: 'All barcodes are stored securely. Role-based access, audit logs, and GS1 compliance built in.' },
 ];
 
 const PLANS = [
-  { name: 'Starter',  price: '1.59',  popular: false, features: ['Up to 3 products', '3 variations per product', 'EAN-13 & UPC-A formats', 'QR code generation', 'PNG & PDF downloads', 'Email support'] },
-  { name: 'Business', price: '4.99',  popular: true,  features: ['Up to 20 products', '15 variations per product', 'All barcode formats', 'Custom branding', 'Priority email support', 'Advanced exports'] },
-  { name: 'Pro',      price: '11.99', popular: false, features: ['Up to 100 products', '50 variations per product', 'All barcode formats', '24/7 phone & email support', 'API access', 'Advanced analytics'] },
+  {
+    name: 'Starter', price: '4.79', popular: false,
+    features: ['3 products', '3 variations / product', 'EAN-13 & UPC-A', 'QR code generation', 'PNG & PDF downloads', 'Email support'],
+  },
+  {
+    name: 'Business', price: '11.99', popular: true,
+    features: ['20 products', '15 variations / product', 'All barcode formats', 'Custom branding on exports', 'Priority email support', 'Advanced exports'],
+  },
+  {
+    name: 'Pro', price: '24.99', popular: false,
+    features: ['100 products', '50 variations / product', 'All formats + API access', '24/7 phone & email support', 'Advanced analytics', 'Multi-country switching'],
+  },
 ];
 
 export default function Landing() {
   return (
     <Layout>
       <main className="landing-page">
+
+        {/* ── Hero ── */}
         <section className="hero">
-          <div className="hero-content">
-            <h1>Generate Professional Barcodes for Your Products</h1>
-            <p className="subtitle">Create unique EAN-13 barcodes for every product variation. Perfect for farmers, retailers, and manufacturers in Zimbabwe and beyond.</p>
-            <div className="cta-buttons">
-              <Link to="/register" className="btn btn-primary btn-lg">Get Started Free</Link>
-              <a href="#features" className="btn btn-secondary btn-lg">Learn More</a>
-            </div>
+          <div className="hero-badge">
+            <span></span>
+            EAN-13 · UPC-A · QR Codes · API Access
           </div>
-          <div className="hero-image">
-            <img
-              src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-              alt="Barcode scanning"
-            />
+          <h1>Professional barcodes for every product.</h1>
+          <p className="subtitle">
+            Generate GS1-compliant barcodes for your entire product catalogue.
+            Built for farmers, retailers, and manufacturers across Zimbabwe and beyond.
+          </p>
+          <div className="cta-buttons">
+            <Link to="/register" className="btn btn-primary btn-lg">Get Started Free</Link>
+            <Link to="/pricing"  className="btn btn-outline btn-lg">View Pricing</Link>
           </div>
         </section>
 
+        {/* ── Features ── */}
         <section id="features" className="features-section">
-          <h2>Why Choose ScanCodeZW?</h2>
-          <p className="section-subtitle">Everything you need to manage product barcodes professionally</p>
+          <h2>Everything you need.</h2>
+          <p className="section-subtitle">One platform to manage product barcodes from generation to retail shelf.</p>
           <div className="features-grid">
             {FEATURES.map(f => (
               <div key={f.title} className="feature-card">
@@ -49,9 +62,10 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ── Pricing ── */}
         <section id="pricing" className="pricing-section">
-          <h2>Simple, Transparent Pricing</h2>
-          <p className="section-subtitle">Choose the plan that fits your business needs</p>
+          <h2>Simple, transparent pricing.</h2>
+          <p className="section-subtitle">No hidden fees. No long-term contracts. Upgrade whenever you need more.</p>
           <div className="pricing-grid">
             {PLANS.map(plan => (
               <div key={plan.name} className={`pricing-card${plan.popular ? ' popular' : ''}`}>
@@ -65,58 +79,63 @@ export default function Landing() {
                     <li key={f}><i className="fas fa-check"></i> {f}</li>
                   ))}
                 </ul>
-                <Link to="/register" className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'} btn-block`}>
+                <Link to="/register" className={`btn btn-block${plan.popular ? ' btn-outline' : ''}`}
+                  style={plan.popular ? { borderColor: 'rgba(255,255,255,0.4)', color: 'black' } : {}}>
                   Get Started
                 </Link>
               </div>
             ))}
           </div>
 
-          {/* Enterprise teaser */}
-          <div className="enterprise-teaser">
-            <div className="enterprise-teaser-content">
-              <i className="fas fa-building"></i>
-              <div>
-                <h3>Enterprise</h3>
-                <p>Unlimited products, white-label branding, full API access, on-premise deployment, and a dedicated account manager. Pricing is scoped to your requirements.</p>
-              </div>
-            </div>
-            <Link to="/pricing#enterprise" className="btn btn-outline">Contact Enterprise Sales</Link>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-            <Link to="/pricing" className="btn btn-secondary">View Full Plan Comparison</Link>
-          </div>
-        </section>
-
-        <section className="use-case-section">
-          <h2>Perfect for Horticulture Farmers</h2>
-          <div className="use-case-example">
-            <div className="use-case-image">
-              <img
-                src="https://images.unsplash.com/photo-1597362925123-77861d3fbac7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                alt="Fresh vegetables"
-              />
-            </div>
-            <div className="use-case-content">
-              <h3>Example: Pepper Supplier</h3>
-              <p>Generate unique EAN-13 barcodes for each variation:</p>
-              <ul>
-                <li><strong>Product:</strong> Peppers</li>
-                <li><strong>Variations:</strong>
-                  <ul>
-                    <li>200g Green Pepper Pack</li>
-                    <li>200g Red Pepper Pack</li>
-                    <li>500g Green Pepper Pack</li>
-                    <li>500g Red Pepper Pack</li>
-                  </ul>
-                </li>
+          <div className="extra-plans-grid">
+            <div className="extra-plan-card extra-plan-enterprise">
+              <div className="extra-plan-icon"><i className="fas fa-sitemap"></i></div>
+              <h3>Enterprise Plan</h3>
+              <p className="extra-plan-tag">Custom Solution</p>
+              <p className="extra-plan-desc">Built for businesses with special needs. Unlimited products, white-label branding, full API access, on-premise deployment, and a dedicated account manager.</p>
+              <ul className="extra-plan-features">
+                <li><i className="fas fa-check"></i> Unlimited products &amp; variations</li>
+                <li><i className="fas fa-check"></i> White-label &amp; custom branding</li>
+                <li><i className="fas fa-check"></i> On-premise deployment option</li>
+                <li><i className="fas fa-check"></i> Dedicated account manager</li>
+                <li><i className="fas fa-check"></i> SLA &amp; priority support</li>
               </ul>
-              <p>Each variation gets a unique, scannable barcode for supermarket inventory systems.</p>
-              <Link to="/register" className="btn btn-primary">Start Generating Barcodes</Link>
+              <Link to="/pricing#enterprise" className="btn btn-block btn-outline" style={{ marginTop: 'auto' }}>Contact Sales</Link>
+            </div>
+
+            <div className="extra-plan-card extra-plan-lifetime">
+              <div className="extra-plan-icon"><i className="fas fa-gem"></i></div>
+              <h3>Lifetime Access</h3>
+              <p className="extra-plan-tag">One-Off Payment</p>
+              <div className="extra-plan-price">$99 <span>once</span></div>
+              <p className="extra-plan-desc">Pay once, use forever. Everything in the Business plan — no recurring fees, no expiry.</p>
+              <ul className="extra-plan-features">
+                <li><i className="fas fa-check"></i> All Business plan features</li>
+                <li><i className="fas fa-check"></i> Lifetime updates included</li>
+                <li><i className="fas fa-check"></i> No monthly subscription</li>
+                <li><i className="fas fa-check"></i> Priority email support</li>
+                <li><i className="fas fa-check"></i> Unlimited barcode exports</li>
+              </ul>
+              <Link to="/register" className="btn btn-block btn-primary" style={{ marginTop: 'auto' }}>Get Lifetime Access</Link>
             </div>
           </div>
         </section>
+
+        {/* ── Use case ── */}
+        <section className="use-case-section">
+          <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
+            <div className="hero-badge" style={{ justifyContent: 'center' }}>
+              <span></span> Real-world example
+            </div>
+            <h2>Built for horticulture &amp; retail.</h2>
+            <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
+              A pepper supplier creates one product — <strong>Peppers</strong> — and generates unique barcodes for
+              200g Green, 200g Red, 500g Green, and 500g Red packs. Each barcode is retailer-ready in seconds.
+            </p>
+            <Link to="/register" className="btn btn-primary btn-lg">Start Generating Barcodes</Link>
+          </div>
+        </section>
+
       </main>
     </Layout>
   );

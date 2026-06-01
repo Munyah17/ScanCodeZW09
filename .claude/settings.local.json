@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(grep -E \"^pg$|postgres|@supabase\")",
+      "Bash(npm install *)",
+      "Bash(DB_PASS='@Griezmann177#$' node run_migrations.mjs)",
+      "Bash(DB_PASS='@Griezmann177#$' node -e ' *)",
+      "Bash(rm /c/Users/munya/Desktop/ScanCodeZW/run_migrations.mjs /c/Users/munya/Desktop/ScanCodeZW/combined_setup.sql 2>/dev/null; echo \"Cleaned up\")",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)"
+    ]
+  }
+}

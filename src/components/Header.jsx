@@ -10,81 +10,66 @@ export default function Header() {
 
   const isActive = (path) => location.pathname === path ? 'active' : '';
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const initials = user?.username ? user.username.charAt(0).toUpperCase() : '?';
 
   return (
     <header className="main-header">
       <div className="header-container">
-        <Link to="/" className="logo">
+        <Link to={user ? '/dashboard' : '/'} className="logo">
           <i className="fas fa-barcode"></i>
           <span>ScanCodeZW</span>
         </Link>
 
         <nav className={`main-nav${mobileOpen ? ' open' : ''}`}>
-          <Link to="/" className={isActive('/')} onClick={() => setMobileOpen(false)}>Home</Link>
+          <Link to={user ? '/dashboard' : '/'} className={isActive(user ? '/dashboard' : '/')} onClick={() => setMobileOpen(false)}>Home</Link>
 
           {user ? (
             <>
-              {user.user_type === 'admin' ? (
-                <>
-                  <Link to="/admin" className={isActive('/admin')} onClick={() => setMobileOpen(false)}>
-                    <i className="fas fa-tachometer-alt"></i> Admin Dashboard
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/dashboard" className={isActive('/dashboard')} onClick={() => setMobileOpen(false)}>
-                    <i className="fas fa-tachometer-alt"></i> Dashboard
-                  </Link>
-                  <Link to="/products" className={isActive('/products')} onClick={() => setMobileOpen(false)}>
-                    <i className="fas fa-box"></i> Products
-                  </Link>
-                  <Link to="/generate-barcode" className={isActive('/generate-barcode')} onClick={() => setMobileOpen(false)}>
-                    <i className="fas fa-barcode"></i> Generate
-                  </Link>
-                </>
+              {user.isStaff && (
+                <Link to="/admin" className={isActive('/admin')} onClick={() => setMobileOpen(false)}>
+                  <i className="fas fa-shield-alt"></i> {user.isSuperAdmin ? 'Super Admin' : 'Admin'}
+                </Link>
               )}
+              <Link to="/dashboard" className={isActive('/dashboard')} onClick={() => setMobileOpen(false)}>
+                <i className="fas fa-tachometer-alt"></i> Dashboard
+              </Link>
+              <Link to="/generate-barcode" className={isActive('/generate-barcode')} onClick={() => setMobileOpen(false)}>
+                <i className="fas fa-barcode"></i> Generate
+              </Link>
 
+              {/* Avatar dropdown */}
               <div className="user-dropdown">
-                <button className="user-menu">
-                  <i className="fas fa-user-circle"></i>
-                  {user.user_type === 'admin' ? (
-                    <><span className="admin-badge-nav">ADMIN</span> {user.username}</>
-                  ) : (
-                    user.username
-                  )}
+                <button className="user-menu avatar-menu">
+                  <span className="avatar-circle">{initials}</span>
+                  <span className="avatar-name">{user.username}</span>
+                  {user.isStaff && <span className="admin-badge-nav">{user.isSuperAdmin ? 'SUPER ADMIN' : user.user_type === 'admin' ? 'ADMIN' : 'STAFF'}</span>}
                   <i className="fas fa-chevron-down"></i>
                 </button>
                 <div className="dropdown-content">
-                  {user.user_type === 'admin' ? (
-                    <>
-                      <Link to="/admin"><i className="fas fa-tachometer-alt"></i> Admin Dashboard</Link>
-                      <div className="dropdown-divider"></div>
-                      <button onClick={handleLogout} style={{ display: 'block', padding: '0.75rem 1rem', color: 'var(--dark-color)', background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: '1rem' }}>
-                        <i className="fas fa-sign-out-alt"></i> Logout
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <Link to="/dashboard"><i className="fas fa-tachometer-alt"></i> Dashboard</Link>
-                      <div className="dropdown-divider"></div>
-                      <button onClick={handleLogout} style={{ display: 'block', padding: '0.75rem 1rem', color: 'var(--dark-color)', background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: '1rem' }}>
-                        <i className="fas fa-sign-out-alt"></i> Logout
-                      </button>
-                    </>
-                  )}
+                  <div className="dropdown-header">
+                    <strong>{user.username}</strong>
+                    <small>{user.email}</small>
+                  </div>
+                  <div className="dropdown-divider"></div>
+                  <Link to="/profile"  onClick={() => setMobileOpen(false)}><i className="fas fa-user-circle"></i> My Profile</Link>
+                  <Link to="/my-barcodes" onClick={() => setMobileOpen(false)}><i className="fas fa-th"></i> My Barcodes</Link>
+                  <Link to="/settings" onClick={() => setMobileOpen(false)}><i className="fas fa-cog"></i> Settings</Link>
+                  <Link to="/pricing"  onClick={() => setMobileOpen(false)}><i className="fas fa-crown"></i> Upgrade Plan</Link>
+                  <div className="dropdown-divider"></div>
+                  <button className="dropdown-logout" onClick={handleLogout}>
+                    <i className="fas fa-sign-out-alt"></i> Logout
+                  </button>
                 </div>
               </div>
             </>
           ) : (
             <>
               <Link to="/features" className={isActive('/features')}>Features</Link>
-              <Link to="/pricing" className={isActive('/pricing')}>Pricing</Link>
-              <Link to="/login" className={isActive('/login')}>Login</Link>
-              <Link to="/register" className={`btn btn-primary btn-sm ${isActive('/register')}`}>Sign Up</Link>
+              <Link to="/pricing"  className={isActive('/pricing')}>Pricing</Link>
+              <Link to="/login"    className={isActive('/login')}>Login</Link>
+              <Link to="/register" className={`btn btn-primary btn-sm ${isActive('/register')}`} style={{ color: 'white' }}>Sign Up</Link>
             </>
           )}
         </nav>

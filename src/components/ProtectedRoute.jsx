@@ -8,11 +8,14 @@ export default function ProtectedRoute({ children, userType }) {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (userType === 'admin' && user.user_type !== 'admin') {
+  const staffRoles = ['super_admin', 'admin', 'technical_support', 'clerk', 'assistant', 'finance'];
+
+  if (userType === 'admin' && !staffRoles.includes(user.user_type)) {
     return <Navigate to="/dashboard" replace />;
   }
-  if (userType === 'user' && user.user_type !== 'user') {
-    return <Navigate to="/admin" replace />;
+
+  if (userType === 'super_admin' && user.user_type !== 'super_admin') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

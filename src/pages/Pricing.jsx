@@ -7,7 +7,7 @@ import PaymentModal from '../components/PaymentModal';
 const PLANS = [
   {
     name: 'Starter',
-    price: '1.59',
+    price: '4.79',
     popular: false,
     color: '#10b981',
     desc: 'Perfect for sole traders and micro-businesses getting started with barcoding.',
@@ -22,7 +22,7 @@ const PLANS = [
   },
   {
     name: 'Business',
-    price: '4.99',
+    price: '11.99',
     popular: true,
     color: '#4f46e5',
     desc: 'The go-to plan for growing farms and retailers managing multiple product lines.',
@@ -38,7 +38,7 @@ const PLANS = [
   },
   {
     name: 'Pro',
-    price: '11.99',
+    price: '24.99',
     popular: false,
     color: '#8b5cf6',
     desc: 'For established businesses with large catalogues and export requirements.',
@@ -52,6 +52,25 @@ const PLANS = [
       'API access (read-only)',
       'Advanced analytics dashboard',
       'Multi-country standard switching',
+    ],
+  },
+  {
+    name: 'Lifetime',
+    price: '129.99',
+    popular: false,
+    oneTime: true,
+    color: '#f59e0b',
+    desc: 'Pay once, use forever. Unlimited everything with no recurring fees.',
+    features: [
+      'Unlimited products',
+      'Unlimited variations',
+      'All barcode formats',
+      'PNG & PDF downloads (38mm / 300 DPI)',
+      'Custom branding on exports',
+      'Priority support forever',
+      'Full API access',
+      'Advanced analytics dashboard',
+      'No monthly renewals ever',
     ],
   },
 ];
@@ -121,7 +140,7 @@ export default function Pricing() {
   const [checkoutPlan, setCheckoutPlan] = useState(null);
 
   const handleGetStarted = (planKey) => {
-    if (!user) { navigate('/register'); return; }
+    if (!user) { navigate('/login'); return; }
     setCheckoutPlan(planKey);
   };
 
@@ -151,7 +170,9 @@ export default function Pricing() {
                 <div className="pricing-header">
                   <div className="plan-icon" style={{ color: plan.color }}><i className="fas fa-box"></i></div>
                   <h3>{plan.name}</h3>
-                  <div className="price" style={{ color: plan.color }}>${plan.price}<span>/month</span></div>
+                  <div className="price" style={{ color: plan.color }}>
+                    ${plan.price}<span>{plan.oneTime ? ' one-time' : '/month'}</span>
+                  </div>
                   <p className="plan-desc">{plan.desc}</p>
                 </div>
                 <ul className="pricing-features">
@@ -206,155 +227,8 @@ export default function Pricing() {
             </div>
           </div>
 
-          {/* Capabilities grid */}
-          <div className="ent-capabilities">
-            {[
-              {
-                icon: 'fas fa-layer-group', color: '#4f46e5',
-                title: 'Unlimited Scale',
-                body:  'No product caps, no variation limits. Import thousands of SKUs at once and generate barcodes in batch across every brand, subsidiary, or retail channel you operate.',
-              },
-              {
-                icon: 'fas fa-plug', color: '#10b981',
-                title: 'Full REST API Access',
-                body:  'Integrate ScanCodeZW directly into your ERP, WMS, or e-commerce platform. Read and write barcodes programmatically. Webhook support for real-time events.',
-              },
-              {
-                icon: 'fas fa-paint-brush', color: '#f59e0b',
-                title: 'White-Label Branding',
-                body:  'Replace ScanCodeZW branding with your own. Custom domain, logo, colour palette, and email templates — your platform, powered by us.',
-              },
-              {
-                icon: 'fas fa-users-cog', color: '#8b5cf6',
-                title: 'Team & Role Management',
-                body:  'Invite your packaging team, warehouse managers, and designers. Fine-grained role permissions ensure each person sees only what they need.',
-              },
-              {
-                icon: 'fas fa-server', color: '#ef4444',
-                title: 'On-Premise Deployment',
-                body:  'Strict data residency requirements? Deploy ScanCodeZW inside your own infrastructure — on-prem or private cloud — with full source access under an enterprise licence.',
-              },
-              {
-                icon: 'fas fa-headset', color: '#06b6d4',
-                title: 'Dedicated Support',
-                body:  'A named account manager, priority incident response, onboarding workshops for your team, and a private Slack channel for day-to-day questions.',
-              },
-            ].map(c => (
-              <div key={c.title} className="ent-capability-card">
-                <div className="ent-cap-icon" style={{ color: c.color, background: `${c.color}15` }}>
-                  <i className={c.icon}></i>
-                </div>
-                <h4>{c.title}</h4>
-                <p>{c.body}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Process + Contact */}
-          <div className="ent-bottom" id="enterprise-contact">
-
-            <div className="ent-process">
-              <h3>How it works</h3>
-              <div className="ent-steps">
-                {[
-                  { n: '01', title: 'Discovery call',   body: 'We learn about your product catalogue, team size, integrations, and compliance needs.' },
-                  { n: '02', title: 'Scoping & proposal', body: 'We send a tailored proposal with pricing, timeline, and a list of deliverables within 48 hours.' },
-                  { n: '03', title: 'Onboarding',        body: 'A dedicated engineer migrates your data, configures your environment, and trains your team.' },
-                  { n: '04', title: 'Go live & support', body: 'You launch with a named account manager and priority support line available from day one.' },
-                ].map(s => (
-                  <div key={s.n} className="ent-step">
-                    <div className="ent-step-num">{s.n}</div>
-                    <div>
-                      <strong>{s.title}</strong>
-                      <span>{s.body}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="ent-contact-card">
-              <div className="ent-contact-header">
-                <i className="fas fa-comments"></i>
-                <div>
-                  <h3>Let's talk</h3>
-                  <p>Describe your setup and we'll respond within one business day.</p>
-                </div>
-              </div>
-              <EnterpriseContactForm />
-            </div>
-
-          </div>
         </section>
 
-        {/* Feature comparison table */}
-        <section className="comparison-section">
-          <h2>Plan Comparison</h2>
-          <p className="section-subtitle">See exactly what's included at each tier</p>
-          <div className="comparison-table-container">
-            <table className="comparison-table">
-              <thead>
-                <tr>
-                  <th>Feature</th>
-                  <th>Starter<br /><span>$1.59/mo</span></th>
-                  <th className="highlight-col">Business<br /><span>$4.99/mo</span></th>
-                  <th>Pro<br /><span>$11.99/mo</span></th>
-                  <th>Enterprise<br /><span>Custom</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ['Products',                 '3',        '20',       '100',       'Unlimited'],
-                  ['Variations per product',   '3',        '15',       '50',        'Unlimited'],
-                  ['EAN-13 / UPC-A',           '✓',        '✓',        '✓',         '✓'],
-                  ['Code 128 / QR Code',       '✓',        '✓',        '✓',         '✓'],
-                  ['PNG export (38mm 300 DPI)', '✓',       '✓',        '✓',         '✓'],
-                  ['PDF export',               '✓',        '✓',        '✓',         '✓'],
-                  ['Custom branding',          '—',        '✓',        '✓',         '✓'],
-                  ['Priority support',         '—',        '✓',        '✓',         '✓'],
-                  ['24/7 phone support',       '—',        '—',        '✓',         '✓'],
-                  ['API access',               '—',        '—',        'Read-only', 'Full'],
-                  ['Advanced analytics',       '—',        '—',        '✓',         '✓'],
-                  ['White-label',              '—',        '—',        '—',         '✓'],
-                  ['On-premise deployment',    '—',        '—',        '—',         '✓'],
-                  ['Dedicated account manager','—',        '—',        '—',         '✓'],
-                ].map(([feature, starter, business, pro, enterprise]) => (
-                  <tr key={feature}>
-                    <td>{feature}</td>
-                    <td className="text-center">{starter}</td>
-                    <td className="text-center highlight-col">{business}</td>
-                    <td className="text-center">{pro}</td>
-                    <td className="text-center">{enterprise}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* FAQ */}
-        <section className="faq-section">
-          <h2>Frequently Asked Questions</h2>
-          <p className="section-subtitle">Quick answers to common questions</p>
-          <div className="faq-grid">
-            {FAQ.map(item => (
-              <div key={item.q} className="faq-card">
-                <h4><i className="fas fa-question-circle"></i> {item.q}</h4>
-                <p>{item.a}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="features-cta">
-          <h2>Start free, scale when you're ready</h2>
-          <p>Sign up today. No credit card required for the Starter plan.</p>
-          <div className="cta-buttons" style={{ justifyContent: 'center' }}>
-            <Link to="/register" className="btn btn-primary btn-lg">Create Free Account</Link>
-            <Link to="/features" className="btn btn-outline btn-lg">Explore Features</Link>
-          </div>
-        </section>
       </main>
 
       {checkoutPlan && user && (

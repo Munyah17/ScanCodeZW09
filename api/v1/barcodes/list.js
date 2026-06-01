@@ -1,20 +1,27 @@
-import { requireApiKey }  from '../../_utils/require-api-key.js';
+/**
+ * GET /api/v1/barcodes/list
+ * List barcodes belonging to the authenticated developer. Free operation.
+ * Query params: limit (max 200), offset, product_id
+ */
+
+import { requireDevKey } from '../../_utils/require-dev-key.js';
 import { supabaseAdmin } from '../../_utils/supabase-admin.js';
+import { logUsage }      from '../../_utils/wallet-ops.js';
+import { j }             from '../../_utils/response.js';
 
-export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') {
-    res.status(200).end(); return;
-  }
-  if (req.method !== 'GET') {
-    res.status(405).json({ error: 'Method not allowed' }); return;
-  }
+export default async (req) => {
+  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
+  if (req.method !== 'GET') return j({ error: 'Method not allowed' }, 405);
 
-  const auth = await requireApiKey(req, res, 'read:barcodes');
-  if (!auth) return;
+  const t0 = Date.now();
 
-  const { limit = '50', offset = '0', product_id } = req.query;
-  const lim = Math.min(parseInt(limit, 10) || 50, 200);
-  const off = parseInt(offset, 10) || 0;
+  const { auth, error } = await requireDevKey(req, 'barcode_list');
+  if (error) return error;
+
+  const params     = new URL(req.url).searchParams;
+  const lim        = Math.min(parseInt(params.get('limit')  ?? '50', 10) || 50, 200);
+  const off        = parseInt(params.get('offset') ?? '0', 10) || 0;
+  const product_id = params.get('product_id');
 
   let query = supabaseAdmin
     .from('variations')
@@ -29,13 +36,14 @@ export default async function handler(req, res) {
 
   if (product_id) query = query.eq('product_id', product_id);
 
-  const { data, count, error } = await query;
-  if (error) { res.status(500).json({ error: error.message }); return; }
+  const { data, count, error: dbErr } = await query;
+  if (dbErr) return j({ error: dbErr.message }, 500);
 
-  res.status(200).json({
-    barcodes: data ?? [],
-    total:    count ?? 0,
-    limit:    lim,
-    offset:   off,
-  });
-}
+  await logUsage({ userId: auth.userId, keyId: auth.keyId, environment: auth.environment,
+    endpoint: '/api/v1/barcodes/list', operation: 'barcode_list',
+    statusCode: 200, costUsd: 0, durationMs: Date.now() - t0 });
+
+  return j({ barcodes: data ?? [], total: count ?? 0, limit: lim, offset: off });
+};
+
+export const config = { path: '/api/v1/barcodes/list' };

@@ -1,22 +1,15 @@
-/**
- * Middleware: authenticate a request using an X-API-Key header.
- * Hashes the provided key with SHA-256 and looks it up in the api_keys table.
- * Returns { userId, keyId, scopes } on success, or sends 401/403 and returns null.
- *
- * Usage in API handlers:
- *   const apiAuth = await requireApiKey(req, res, 'read:barcodes');
- *   if (!apiAuth) return;
- */
-
 import crypto            from 'crypto';
 import { supabaseAdmin } from './supabase-admin.js';
+import { j }             from './response.js';
 
-export async function requireApiKey(req, res, requiredScope = null) {
-  const rawKey = req.headers['x-api-key'];
+export async function requireApiKey(req, requiredScope = null) {
+  // Accept key via X-API-Key header (preferred) or Authorization: Bearer <key>
+  const xApiKey = req.headers.get('x-api-key');
+  const bearer  = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/, '');
+  const rawKey  = xApiKey || (bearer.startsWith('scz_') ? bearer : null);
 
   if (!rawKey) {
-    res.status(401).json({ error: 'Missing X-API-Key header.' });
-    return null;
+    return { auth: null, error: j({ error: 'Missing API key. Provide it via X-API-Key header.' }, 401) };
   }
 
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
@@ -27,32 +20,17 @@ export async function requireApiKey(req, res, requiredScope = null) {
     .eq('key_hash', keyHash)
     .single();
 
-  if (!key) {
-    res.status(401).json({ error: 'Invalid API key.' });
-    return null;
-  }
-
-  if (!key.active) {
-    res.status(401).json({ error: 'This API key has been revoked.' });
-    return null;
-  }
-
+  if (!key)       return { auth: null, error: j({ error: 'Invalid API key.' }, 401) };
+  if (!key.active) return { auth: null, error: j({ error: 'This API key has been revoked.' }, 401) };
   if (key.expires_at && new Date(key.expires_at) < new Date()) {
-    res.status(401).json({ error: 'This API key has expired.' });
-    return null;
+    return { auth: null, error: j({ error: 'This API key has expired.' }, 401) };
   }
-
   if (requiredScope && !key.scopes.includes(requiredScope)) {
-    res.status(403).json({ error: `This key does not have the required scope: ${requiredScope}` });
-    return null;
+    return { auth: null, error: j({ error: `This key does not have the required scope: ${requiredScope}` }, 403) };
   }
 
-  // Update last_used_at (fire-and-forget)
-  supabaseAdmin
-    .from('api_keys')
-    .update({ last_used_at: new Date().toISOString() })
-    .eq('id', key.id)
-    .then(() => {});
+  // Fire-and-forget
+  supabaseAdmin.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', key.id).then(() => {});
 
-  return { userId: key.user_id, keyId: key.id, scopes: key.scopes };
+  return { auth: { userId: key.user_id, keyId: key.id, scopes: key.scopes }, error: null };
 }

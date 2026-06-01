@@ -1,25 +1,13 @@
-/**
- * Shared middleware: verify the request comes from an authenticated user
- * via Supabase JWT (Authorization: Bearer <token>).
- * Returns { userId, profile } on success, or sends 401 and returns null.
- */
-
 import { supabaseAdmin } from './supabase-admin.js';
+import { j }             from './response.js';
 
-export async function requireAuth(req, res) {
-  const authHeader = req.headers['authorization'] ?? '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+export async function requireAuth(req) {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/, '') || null;
 
-  if (!token) {
-    res.status(401).json({ error: 'Missing authorization token.' });
-    return null;
-  }
+  if (!token) return { auth: null, error: j({ error: 'Missing authorization token.' }, 401) };
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) {
-    res.status(401).json({ error: 'Invalid or expired token.' });
-    return null;
-  }
+  if (error || !user) return { auth: null, error: j({ error: 'Invalid or expired token.' }, 401) };
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
@@ -27,5 +15,5 @@ export async function requireAuth(req, res) {
     .eq('id', user.id)
     .single();
 
-  return { userId: user.id, profile };
+  return { auth: { userId: user.id, email: user.email, profile }, error: null };
 }

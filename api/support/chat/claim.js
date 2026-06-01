@@ -1,21 +1,18 @@
-/**
- * POST /api/support/chat/claim
- * Agent claims a waiting chat session. Requires admin JWT.
- * Body: { sessionId }
- */
-
 import { requireAdmin }  from '../../_utils/require-admin.js';
 import { supabaseAdmin } from '../../_utils/supabase-admin.js';
+import { j }             from '../../_utils/response.js';
 
-export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+export default async (req) => {
+  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
+  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
 
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
+  const { auth: admin, error } = await requireAdmin(req);
+  if (error) return error;
 
-  const { sessionId } = req.body ?? {};
-  if (!sessionId) return res.status(400).json({ error: 'sessionId is required.' });
+  let body;
+  try { body = await req.json(); } catch { body = {}; }
+  const { sessionId } = body;
+  if (!sessionId) return j({ error: 'sessionId is required.' }, 400);
 
   const { data: session } = await supabaseAdmin
     .from('chat_sessions')
@@ -23,23 +20,16 @@ export default async function handler(req, res) {
     .eq('id', sessionId)
     .single();
 
-  if (!session) return res.status(404).json({ error: 'Session not found.' });
-  if (session.status !== 'waiting') {
-    return res.status(400).json({ error: `Session is already ${session.status}.` });
-  }
+  if (!session) return j({ error: 'Session not found.' }, 404);
+  if (session.status !== 'waiting') return j({ error: `Session is already ${session.status}.` }, 400);
 
-  const { error } = await supabaseAdmin
+  const { error: dbErr } = await supabaseAdmin
     .from('chat_sessions')
-    .update({
-      status:      'active',
-      agent_id:    admin.id,
-      assigned_at: new Date().toISOString(),
-    })
+    .update({ status: 'active', agent_id: admin.id, assigned_at: new Date().toISOString() })
     .eq('id', sessionId);
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (dbErr) return j({ error: dbErr.message }, 500);
 
-  // Send a system greeting message
   await supabaseAdmin.from('chat_messages').insert({
     session_id:  sessionId,
     sender_id:   admin.id,
@@ -48,5 +38,7 @@ export default async function handler(req, res) {
     body:        `Hello! I'm ${admin.username ?? 'a support agent'} and I'm here to help. How can I assist you today?`,
   });
 
-  return res.status(200).json({ success: true });
-}
+  return j({ success: true });
+};
+
+export const config = { path: '/api/support/chat/claim' };

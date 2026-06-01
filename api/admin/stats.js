@@ -1,18 +1,13 @@
-/**
- * GET /api/admin/stats
- * Returns platform-wide aggregate statistics.
- * Requires admin JWT in Authorization header.
- */
-
 import { requireAdmin }  from '../_utils/require-admin.js';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
+import { j }             from '../_utils/response.js';
 
-export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+export default async (req) => {
+  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
+  if (req.method !== 'GET') return j({ error: 'Method not allowed' }, 405);
 
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
+  const { auth: admin, error } = await requireAdmin(req);
+  if (error) return error;
 
   try {
     const [
@@ -29,13 +24,11 @@ export default async function handler(req, res) {
       supabaseAdmin.from('variations').select('barcode_country').not('barcode_country', 'is', null),
     ]);
 
-    // Subscription distribution
     const distribution = {};
     for (const r of subRows ?? []) {
       distribution[r.subscription_type] = (distribution[r.subscription_type] ?? 0) + 1;
     }
 
-    // Revenue by plan
     const revenueByPlan = (plans ?? [])
       .filter(p => p.price_usd != null)
       .map(p => ({
@@ -47,7 +40,6 @@ export default async function handler(req, res) {
 
     const totalRevenue = revenueByPlan.reduce((sum, r) => sum + r.monthly_revenue, 0);
 
-    // Country breakdown
     const countryCounts = {};
     for (const r of countryRows ?? []) {
       countryCounts[r.barcode_country] = (countryCounts[r.barcode_country] ?? 0) + 1;
@@ -56,14 +48,13 @@ export default async function handler(req, res) {
       .map(([barcode_country, count]) => ({ barcode_country, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Recent payments
     const { data: recentPayments } = await supabaseAdmin
       .from('payments')
       .select('reference, plan, amount_usd, method, status, paid_at, created_at')
       .order('created_at', { ascending: false })
       .limit(10);
 
-    return res.status(200).json({
+    return j({
       total_users:               totalUsers ?? 0,
       total_barcodes:            totalBarcodes ?? 0,
       total_revenue:             totalRevenue,
@@ -74,6 +65,8 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[Admin stats]', err.message);
-    return res.status(500).json({ error: err.message });
+    return j({ error: err.message }, 500);
   }
-}
+};
+
+export const config = { path: '/api/admin/stats' };

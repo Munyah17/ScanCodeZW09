@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Alert from '../components/Alert';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate  = useNavigate();
+
+  // Redirect already-logged-in users straight to dashboard
+  useEffect(() => {
+    if (user) navigate('/dashboard', { replace: true });
+  }, [user]);
 
   const [form, setForm]       = useState({ email: '', password: '' });
   const [error, setError]     = useState('');
@@ -36,7 +41,7 @@ export default function Login() {
       <main className="auth-page">
         <div className="auth-container">
           <div className="auth-card">
-            <h2>Client Login</h2>
+            <h2>Login</h2>
             <p className="auth-subtitle">Enter your credentials to access your barcode dashboard</p>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
@@ -83,12 +88,6 @@ export default function Login() {
 
             <div className="auth-footer">
               <p>Don't have an account? <Link to="/register">Register here</Link></p>
-              <p className="admin-note">
-                <small>
-                  <i className="fas fa-user-shield"></i> Admin?{' '}
-                  <Link to="/admin">Go to Admin Login</Link>
-                </small>
-              </p>
             </div>
           </div>
 

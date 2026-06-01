@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port:        5402,  // ScanCodeZW dedicated — do not use for other apps
+    strictPort:  false, // allow auto-shift when port is taken (needed for netlify dev)
+    host:        true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3042',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

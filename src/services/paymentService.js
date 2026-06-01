@@ -1,55 +1,67 @@
 /**
  * Payment service — client-side layer.
- *
- * All functions call Vercel serverless functions in /api/.
- * On localhost use `vercel dev` (port 3000) so the /api/ routes are available.
- *
- * In production (Vercel), calls go to /api/* on the same domain automatically.
+ * All API calls go to Netlify serverless functions in /api/.
+ * Run `npx netlify dev` locally to have both frontend + functions on one origin.
  */
 
-const API_BASE = import.meta.env.DEV
-  ? 'http://localhost:3000'   // vercel dev
-  : '';                       // same-origin on Vercel
+const API_BASE = '';
 
 export const PLAN_PRICES = {
-  starter:  { label: 'Starter',  usd: 1.59  },
-  business: { label: 'Business', usd: 4.99  },
-  pro:      { label: 'Pro',      usd: 11.99 },
+  free:     { label: 'Free Trial', usd: 0 },
+  starter:  { label: 'Starter',    usd: 4.79  },
+  business: { label: 'Business',   usd: 11.99  },
+  pro:      { label: 'Pro',        usd: 24.99 },
+  lifetime: { label: 'Lifetime',   usd: 129.99, oneTime: true },
 };
+
+async function parseResponse(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { error: text || `HTTP ${res.status}` }; }
+}
+
+function authHeader(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 // ── Stripe ────────────────────────────────────────────────────────────────────
 
-/**
- * Create a Stripe Checkout Session and return the hosted URL to redirect to.
- * @returns {{ url: string }}
- */
-export async function createStripeCheckoutSession({ plan, userId, email, reference }) {
+export async function createStripeCheckoutSession({ plan, reference, token }) {
   const res = await fetch(`${API_BASE}/api/stripe/create-checkout-session`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ plan, userId, email, reference }),
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    body:    JSON.stringify({ plan, reference }),
   });
-  const data = await res.json();
+  const data = await parseResponse(res);
   if (!res.ok) throw new Error(data.error || 'Failed to create checkout session.');
-  return data;  // { url }
+  if (!data.url) throw new Error('Payment gateway returned an invalid response.');
+  return data; // { url }
 }
 
-// ── Paynow ────────────────────────────────────────────────────────────────────
+// ── Paynow Web Redirect ───────────────────────────────────────────────────────
 
-/**
- * Initiate a Paynow web-redirect payment.
- * Redirects the user's browser to Paynow's hosted checkout page.
- * @returns {{ success: boolean, redirectUrl: string, reference: string }}
- */
-export async function initiatePaynowRedirect({ plan, userId, email, reference }) {
+export async function initiatePaynowRedirect({ plan, reference, token }) {
   const res = await fetch(`${API_BASE}/api/paynow/initiate`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ plan, userId, email, reference }),
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    body:    JSON.stringify({ plan, reference }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to initiate payment.');
-  return data;  // { success, redirectUrl, reference }
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data.error || 'Failed to initiate Paynow payment.');
+  if (!data.redirectUrl) throw new Error('Payment gateway returned an invalid response.');
+  return data; // { success, redirectUrl, reference }
+}
+
+// ── Paynow Mobile USSD (EcoCash / OneMoney) ──────────────────────────────────
+
+export async function initiatePaynowMobile({ plan, phone, method, token }) {
+  const res = await fetch(`${API_BASE}/api/paynow/mobile`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+    body:    JSON.stringify({ plan, phone, method }),
+  });
+  const data = await parseResponse(res);
+  if (!res.ok) throw new Error(data.error || 'Failed to send mobile payment request.');
+  return data; // { success, reference, instructions, pollUrl }
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────

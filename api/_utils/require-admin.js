@@ -1,25 +1,13 @@
-/**
- * Shared middleware: verify the request comes from an authenticated admin.
- * Reads Authorization: Bearer <supabase-jwt> from the request header.
- * Returns the admin profile on success, or sends a 401/403 and returns null.
- */
-
 import { supabaseAdmin } from './supabase-admin.js';
+import { j }             from './response.js';
 
-export async function requireAdmin(req, res) {
-  const authHeader = req.headers['authorization'] ?? '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+export async function requireAdmin(req) {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/, '') || null;
 
-  if (!token) {
-    res.status(401).json({ error: 'Missing authorization token.' });
-    return null;
-  }
+  if (!token) return { auth: null, error: j({ error: 'Missing authorization token.' }, 401) };
 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) {
-    res.status(401).json({ error: 'Invalid or expired token.' });
-    return null;
-  }
+  if (error || !user) return { auth: null, error: j({ error: 'Invalid or expired token.' }, 401) };
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
@@ -27,10 +15,9 @@ export async function requireAdmin(req, res) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || profile.user_type !== 'admin') {
-    res.status(403).json({ error: 'Admin access required.' });
-    return null;
+  if (!profile || !['admin', 'super_admin'].includes(profile.user_type)) {
+    return { auth: null, error: j({ error: 'Admin access required.' }, 403) };
   }
 
-  return profile;
+  return { auth: profile, error: null };
 }
