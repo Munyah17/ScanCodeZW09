@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
-import PaymentModal from '../components/PaymentModal';
 
 const PLANS = [
   {
@@ -135,17 +134,15 @@ function EnterpriseContactForm() {
 }
 
 export default function Pricing() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [checkoutPlan, setCheckoutPlan] = useState(null);
+  const { user }    = useAuth();
+  const navigate    = useNavigate();
 
   const handleGetStarted = (planKey) => {
-    if (!user) { navigate('/login'); return; }
-    setCheckoutPlan(planKey);
-  };
-
-  const handlePaymentSuccess = (plan) => {
-    setCheckoutPlan(null);
+    if (user) {
+      navigate(`/checkout?plan=${planKey}`);
+    } else {
+      navigate(`/register?plan=${planKey}`);
+    }
   };
 
   return (
@@ -188,7 +185,7 @@ export default function Pricing() {
                   }
                   onClick={() => handleGetStarted(plan.name.toLowerCase())}
                 >
-                  {user ? 'Subscribe Now' : 'Get Started'}
+                  Get Started
                 </button>
               </div>
             ))}
@@ -231,14 +228,6 @@ export default function Pricing() {
 
       </main>
 
-      {checkoutPlan && user && (
-        <PaymentModal
-          plan={checkoutPlan}
-          user={user}
-          onClose={() => setCheckoutPlan(null)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
     </Layout>
   );
 }

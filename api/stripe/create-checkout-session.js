@@ -1,6 +1,10 @@
 /**
  * POST /api/stripe/create-checkout-session
  * Body: { plan, reference? }
+ *
+ * Monthly plans use mode:'subscription' with recurring billing.
+ * Lifetime uses mode:'payment' (one-time charge).
+ *
  * Test card: 4242 4242 4242 4242  exp: any future  cvc: any 3 digits
  */
 
@@ -15,6 +19,7 @@ const PLAN_NAMES = {
   pro:      'ScanCodeZW Pro Plan',
   lifetime: 'ScanCodeZW Lifetime Plan',
 };
+const ONE_TIME_PLANS = new Set(['lifetime']);
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -35,33 +40,54 @@ export default async (req) => {
 
   if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
 
-  const userId    = auth.userId;
-  const email     = auth.profile?.email ?? '';
-  const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-  const appUrl    = process.env.APP_URL ?? 'http://localhost:8888';
-  const successUrl = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl  = process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`;
+  const userId      = auth.userId;
+  const email       = auth.profile?.email ?? auth.email ?? '';
+  const reference   = clientRef ?? `SCZ-${userId}-${Date.now()}`;
+  const appUrl      = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+  const successUrl  = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl   = process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`;
+  const isOneTime   = ONE_TIME_PLANS.has(plan);
 
   try {
     const sessionParams = {
-      mode:                 'payment',
-      line_items: [{
+      success_url: successUrl,
+      cancel_url:  cancelUrl,
+      metadata:    { plan, userId, reference },
+    };
+
+    if (email) sessionParams.customer_email = email;
+
+    if (isOneTime) {
+      // Lifetime — one-time payment
+      sessionParams.mode = 'payment';
+      sessionParams.payment_method_types = ['card'];
+      sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
           unit_amount:  PLAN_AMOUNTS_CENTS[plan],
           product_data: { name: PLAN_NAMES[plan] },
         },
         quantity: 1,
-      }],
-      success_url:          successUrl,
-      cancel_url:           cancelUrl,
-      metadata:             { plan, userId, reference },
-      payment_method_types: ['card'],
-    };
-    if (email) sessionParams.customer_email = email;
+      }];
+    } else {
+      // Monthly plans — recurring subscription
+      sessionParams.mode = 'subscription';
+      sessionParams.line_items = [{
+        price_data: {
+          currency:   'usd',
+          unit_amount: PLAN_AMOUNTS_CENTS[plan],
+          product_data: { name: PLAN_NAMES[plan] },
+          recurring: { interval: 'month' },
+        },
+        quantity: 1,
+      }];
+      // Pass reference through subscription metadata too
+      sessionParams.subscription_data = { metadata: { plan, userId, reference } };
+    }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
     return j({ url: session.url });
+
   } catch (err) {
     console.error('[Stripe] create-checkout-session error:', err.message);
     return j({ error: err.message }, 500);

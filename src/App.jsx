@@ -12,6 +12,7 @@ import GenerateBarcode from './pages/GenerateBarcode';
 import Products from './pages/Products';
 import PaymentReturn from './pages/PaymentReturn';
 import PaymentCancel from './pages/PaymentCancel';
+import CheckoutPage  from './pages/CheckoutPage';
 import MyBarcodesPage from './pages/MyBarcodesPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
@@ -117,6 +118,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/checkout"       element={<PageTransition><CheckoutPage  /></PageTransition>} />
           <Route path="/payment/return" element={<PageTransition><PaymentReturn /></PageTransition>} />
           <Route path="/payment/cancel" element={<PageTransition><PaymentCancel /></PageTransition>} />
 

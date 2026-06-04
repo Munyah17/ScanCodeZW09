@@ -4,16 +4,13 @@
  * Returns: { success, redirectUrl, reference }
  *
  * Web-redirect flow: user is sent to Paynow's hosted checkout page.
- * Paynow handles method selection (card, EcoCash, OneMoney, InnBucks, ZIPIT).
+ * Paynow handles method selection (EcoCash, OneMoney, InnBucks, ZIPIT).
  */
 
-import { createRequire } from 'module';
-import { requireAuth }   from '../_utils/require-auth.js';
-import { j }             from '../_utils/response.js';
-import { supabaseAdmin } from '../_utils/supabase-admin.js';
-
-const require = createRequire(import.meta.url);
-const { Paynow } = require('paynow');
+import { initiateWebPayment } from '../_utils/paynow.js';
+import { requireAuth }        from '../_utils/require-auth.js';
+import { j }                  from '../_utils/response.js';
+import { supabaseAdmin }      from '../_utils/supabase-admin.js';
 
 const PLAN_AMOUNTS = { starter: 4.79, business: 11.99, pro: 24.99, lifetime: 129.99 };
 const PLAN_LABELS  = {
@@ -47,21 +44,25 @@ export default async (req) => {
   const userId    = auth.userId;
   const email     = auth.email ?? '';
   const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-  const appUrl    = process.env.APP_URL ?? 'http://localhost:8888';
-
-  const paynow = new Paynow(integrationId, integrationKey);
-  paynow.resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
-  paynow.returnUrl = process.env.PAYNOW_RETURN_URL ?? `${appUrl}/payment/return?reference=${encodeURIComponent(reference)}`;
-
-  const payment = paynow.createPayment(reference, email);
-  payment.add(PLAN_LABELS[plan], PLAN_AMOUNTS[plan]);
+  const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+  const resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
+  const returnUrl = process.env.PAYNOW_RETURN_URL  ?? `${appUrl}/payment/return?reference=${encodeURIComponent(reference)}`;
 
   try {
-    const response = await paynow.send(payment);
+    const result = await initiateWebPayment({
+      integrationId,
+      integrationKey,
+      reference,
+      amount:      PLAN_AMOUNTS[plan],
+      email,
+      description: PLAN_LABELS[plan],
+      resultUrl,
+      returnUrl,
+    });
 
-    if (!response.success) {
-      console.error('[Paynow] initiate failed:', response.error);
-      return j({ error: response.error || 'Paynow payment initiation failed.' }, 502);
+    if (!result.success) {
+      console.error('[Paynow] initiate failed:', result.error);
+      return j({ error: result.error || 'Paynow payment initiation failed.' }, 502);
     }
 
     await supabaseAdmin.from('payments').insert({
@@ -70,11 +71,11 @@ export default async (req) => {
       plan,
       amount_usd:      PLAN_AMOUNTS[plan],
       method:          'paynow',
-      paynow_poll_url: response.pollUrl ?? null,
+      paynow_poll_url: result.pollUrl ?? null,
       status:          'pending',
     }).catch(err => console.warn('[Paynow] Supabase insert warning:', err.message));
 
-    return j({ success: true, redirectUrl: response.redirectUrl, reference });
+    return j({ success: true, redirectUrl: result.redirectUrl, reference });
 
   } catch (err) {
     console.error('[Paynow] initiate error:', err.message);

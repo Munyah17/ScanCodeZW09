@@ -1,9 +1,3 @@
-/**
- * Payment service — client-side layer.
- * All API calls go to Netlify serverless functions in /api/.
- * Run `npx netlify dev` locally to have both frontend + functions on one origin.
- */
-
 const API_BASE = '';
 
 export const PLAN_PRICES = {
@@ -23,8 +17,6 @@ function authHeader(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ── Stripe ────────────────────────────────────────────────────────────────────
-
 export async function createStripeCheckoutSession({ plan, reference, token }) {
   const res = await fetch(`${API_BASE}/api/stripe/create-checkout-session`, {
     method:  'POST',
@@ -37,8 +29,6 @@ export async function createStripeCheckoutSession({ plan, reference, token }) {
   return data; // { url }
 }
 
-// ── Paynow Web Redirect ───────────────────────────────────────────────────────
-
 export async function initiatePaynowRedirect({ plan, reference, token }) {
   const res = await fetch(`${API_BASE}/api/paynow/initiate`, {
     method:  'POST',
@@ -50,21 +40,6 @@ export async function initiatePaynowRedirect({ plan, reference, token }) {
   if (!data.redirectUrl) throw new Error('Payment gateway returned an invalid response.');
   return data; // { success, redirectUrl, reference }
 }
-
-// ── Paynow Mobile USSD (EcoCash / OneMoney) ──────────────────────────────────
-
-export async function initiatePaynowMobile({ plan, phone, method, token }) {
-  const res = await fetch(`${API_BASE}/api/paynow/mobile`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-    body:    JSON.stringify({ plan, phone, method }),
-  });
-  const data = await parseResponse(res);
-  if (!res.ok) throw new Error(data.error || 'Failed to send mobile payment request.');
-  return data; // { success, reference, instructions, pollUrl }
-}
-
-// ── Shared ────────────────────────────────────────────────────────────────────
 
 export function generateReference(userId) {
   return `SCZ-${userId}-${Date.now()}`;

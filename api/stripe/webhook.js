@@ -1,10 +1,14 @@
 /**
  * POST /api/stripe/webhook
- * Handles two event types:
+ *
+ * Handles:
  *   checkout.session.completed
  *     → metadata.type === 'dev_wallet_topup'  → credit developer wallet
- *     → (else)                                → activate subscription
- *   checkout.session.expired → mark pending payment cancelled
+ *     → mode === 'subscription'               → activate monthly subscription
+ *     → mode === 'payment'                    → activate lifetime plan
+ *   checkout.session.expired        → mark pending payment cancelled
+ *   invoice.payment_succeeded       → renew monthly subscription (+1 month)
+ *   customer.subscription.deleted   → cancel/expire subscription
  */
 
 import Stripe from 'stripe';
@@ -30,10 +34,16 @@ export default async (req) => {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object);
         break;
       case 'checkout.session.expired':
         await markExpired(event.data.object);
+        break;
+      case 'invoice.payment_succeeded':
+        await handleInvoicePaid(event.data.object);
+        break;
+      case 'customer.subscription.deleted':
+        await handleSubscriptionCancelled(event.data.object);
         break;
     }
     return j({ received: true });
@@ -43,15 +53,21 @@ export default async (req) => {
   }
 };
 
-// ── Route completed sessions ──────────────────────────────────────────────────
-async function handleCompleted(session) {
+// ── Checkout session completed ────────────────────────────────────────────────
+async function handleCheckoutCompleted(session) {
   const meta = session.metadata ?? {};
 
   if (meta.type === 'dev_wallet_topup') {
     await handleWalletTopup(session);
-  } else {
-    await handleSubscription(session);
+    return;
   }
+
+  // Both subscription and one-time payment modes land here
+  const { plan, userId, reference } = meta;
+  if (!plan || !userId) return;
+
+  await upsertPayment({ reference, userId, plan, session, method: 'stripe', status: 'paid' });
+  await activateSubscription({ userId, plan });
 }
 
 // ── Developer wallet top-up ───────────────────────────────────────────────────
@@ -74,28 +90,71 @@ async function handleWalletTopup(session) {
     console.error('[Stripe webhook] wallet credit RPC error:', error.message);
     return;
   }
-
-  console.log(`[Stripe webhook] Wallet topped up $${usd} for user ${userId}. New balance: $${result?.balance}`);
+  console.log(`[Stripe webhook] Wallet topped up $${usd} for user ${userId}. Balance: $${result?.balance}`);
 }
 
-// ── Subscription activation ───────────────────────────────────────────────────
-async function handleSubscription(session) {
-  const { plan, userId, reference } = session.metadata ?? {};
+// ── Monthly invoice renewal ───────────────────────────────────────────────────
+async function handleInvoicePaid(invoice) {
+  // Only process renewals, not the initial invoice (which is handled by checkout.session.completed)
+  if (invoice.billing_reason === 'subscription_create') return;
+
+  const subscriptionId = invoice.subscription;
+  if (!subscriptionId) return;
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+  const sub    = await stripe.subscriptions.retrieve(subscriptionId);
+  const meta   = sub.metadata ?? {};
+  const { plan, userId } = meta;
+
   if (!plan || !userId) return;
+
+  const reference = `SCZ-RENEW-${userId}-${Date.now()}`;
+  await upsertPayment({
+    reference,
+    userId,
+    plan,
+    method: 'stripe',
+    status: 'paid',
+    amountUsd: (invoice.amount_paid ?? 0) / 100,
+    stripeRef: invoice.id,
+  });
+  await activateSubscription({ userId, plan });
+  console.log(`[Stripe webhook] Renewed ${plan} for user ${userId}`);
+}
+
+// ── Subscription cancelled ────────────────────────────────────────────────────
+async function handleSubscriptionCancelled(sub) {
+  const { userId } = sub.metadata ?? {};
+  if (!userId) return;
+
+  await supabaseAdmin.from('profiles')
+    .update({ subscription_type: 'free', subscription_end_date: null })
+    .eq('id', userId);
+
+  console.log(`[Stripe webhook] Subscription cancelled for user ${userId}`);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+async function upsertPayment({ reference, userId, plan, session, method, status, amountUsd, stripeRef }) {
+  const amount = amountUsd ?? (session ? (session.amount_total ?? 0) / 100 : 0);
+  const ref    = stripeRef ?? (session ? (session.payment_intent ?? session.id) : null);
 
   await supabaseAdmin.from('payments').upsert({
     reference,
     user_id:    userId,
     plan,
-    amount_usd: (session.amount_total ?? 0) / 100,
-    method:     'stripe',
-    stripe_pi:  session.payment_intent ?? session.id,
-    status:     'paid',
+    amount_usd: amount,
+    method,
+    stripe_pi:  ref,
+    status,
     paid_at:    new Date().toISOString(),
   }, { onConflict: 'reference' });
+}
 
+async function activateSubscription({ userId, plan }) {
   const isLifetime = plan === 'lifetime';
   const update     = { subscription_type: plan };
+
   if (!isLifetime) {
     const end = new Date();
     end.setMonth(end.getMonth() + 1);
@@ -108,7 +167,6 @@ async function handleSubscription(session) {
   console.log(`[Stripe webhook] Activated ${plan} for user ${userId}${isLifetime ? ' (lifetime)' : ''}`);
 }
 
-// ── Expired sessions ──────────────────────────────────────────────────────────
 async function markExpired(session) {
   const { reference } = session.metadata ?? {};
   if (!reference) return;

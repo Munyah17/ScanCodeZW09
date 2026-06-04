@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Alert from '../components/Alert';
-import PaymentModal from '../components/PaymentModal';
 
 const PLANS = [
   {
@@ -50,15 +49,14 @@ const PLANS = [
 ];
 
 export default function Register() {
-  const { register } = useAuth();
-  const navigate     = useNavigate();
+  const { register }   = useAuth();
+  const navigate       = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselect      = searchParams.get('plan') ?? 'free';
 
-  const [form, setForm]       = useState({ username: '', email: '', password: '', confirm_password: '', terms: false, plan: 'free' });
+  const [form, setForm]       = useState({ username: '', email: '', password: '', confirm_password: '', terms: false, plan: preselect });
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
-
-  // After account creation for a paid plan, hold user data to pass to PaymentModal
-  const [paymentUser, setPaymentUser] = useState(null);
 
   const handle = (e) => {
     const { name, value, type, checked } = e.target;
@@ -76,27 +74,23 @@ export default function Register() {
     setLoading(true);
     try {
       const result = await register(form.username, form.email, form.password);
-      if (!result.success) {
-        setError(result.error);
+      if (!result.success) { setError(result.error); return; }
+
+      if (form.plan === 'free') {
+        navigate('/dashboard');
         return;
       }
 
-      if (form.plan === 'free') {
-        // Free plan — go straight to dashboard
-        navigate('/dashboard');
-      } else {
-        // Paid plan — show payment modal immediately; account is already created & signed in
-        setPaymentUser({ id: result.userId, email: result.email, accessToken: result.accessToken });
-      }
+      // Paid plan — send to checkout gateway selection page
+      navigate(`/checkout?plan=${form.plan}`);
+
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Called when user closes the payment modal without paying (or after payment redirect)
-  const handlePaymentClose = () => {
-    navigate('/dashboard');
-  };
 
   return (
     <Layout>
@@ -184,11 +178,7 @@ export default function Register() {
 
               <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
                 <i className="fas fa-user-plus"></i>{' '}
-                {loading
-                  ? 'Creating account…'
-                  : form.plan === 'free'
-                    ? 'Create Account'
-                    : 'Create Account & Continue to Payment'}
+                {loading ? 'Creating account…' : 'Create Account'}
               </button>
             </form>
 
@@ -210,15 +200,6 @@ export default function Register() {
           </div>
         </div>
       </main>
-
-      {/* Payment modal — shown immediately after account creation for paid plans */}
-      {paymentUser && (
-        <PaymentModal
-          plan={form.plan}
-          user={paymentUser}
-          onClose={handlePaymentClose}
-        />
-      )}
     </Layout>
   );
 }

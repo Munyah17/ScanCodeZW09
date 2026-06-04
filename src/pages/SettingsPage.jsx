@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
-import PaymentModal from '../components/PaymentModal';
 
 const REGULAR_PLANS = [
   { key: 'starter',  label: 'Starter',  price: '4.79',  features: ['3 products', '3 variations/product', 'EAN-13 & UPC-A', 'QR codes', 'PNG & PDF'] },
@@ -24,11 +23,10 @@ export default function SettingsPage() {
   const [deleting,      setDeleting]      = useState(false);
   const [msg,           setMsg]           = useState('');
   const [err,           setErr]           = useState('');
-  const [checkoutPlan,  setCheckoutPlan]  = useState(null);
-
-  const currentPlan = user?.subscription_type ?? 'free';
-
+  const currentPlan  = user?.subscription_type ?? 'free';
   const isSuperAdmin = user?.isSuperAdmin;
+
+  const handleUpgrade = (planKey) => navigate(`/checkout?plan=${planKey}`);
 
   const handleDeleteAccount = async (e) => {
     e.preventDefault();
@@ -62,7 +60,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Regular plans row */}
+        {/* Regular plans */}
         <div className="dp-plan-grid">
           {REGULAR_PLANS.map(plan => {
             const isCurrent = currentPlan === plan.key;
@@ -77,10 +75,10 @@ export default function SettingsPage() {
                 {!isCurrent && (
                   <button
                     className="dp-btn dp-btn-primary"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => setCheckoutPlan(plan.key)}
+                    style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}
+                    onClick={() => handleUpgrade(plan.key)}
                   >
-                    {currentPlan === 'starter' || plan.key === 'pro' ? 'Upgrade' : 'Switch'} to {plan.label}
+                    Upgrade
                   </button>
                 )}
               </div>
@@ -88,7 +86,7 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {/* Premium plans row */}
+        {/* Premium plans */}
         <div className="dp-plan-grid dp-plan-grid-premium">
           {PREMIUM_PLANS.map(plan => {
             const isCurrent = currentPlan === plan.key;
@@ -117,10 +115,10 @@ export default function SettingsPage() {
                   ) : (
                     <button
                       className="dp-btn dp-btn-primary dp-btn-premium"
-                      style={{ width: '100%', justifyContent: 'center' }}
-                      onClick={() => setCheckoutPlan(plan.key)}
+                      style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}
+                      onClick={() => handleUpgrade(plan.key)}
                     >
-                      Upgrade to {plan.label}
+                      Upgrade
                     </button>
                   )
                 )}
@@ -150,7 +148,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Danger zone — hidden for Super Admin */}
+      {/* Danger zone */}
       {!isSuperAdmin && (
         <div className="dp-section dp-danger-section">
           <div className="dp-section-header">
@@ -180,14 +178,6 @@ export default function SettingsPage() {
             </button>
           </form>
         </div>
-      )}
-
-      {checkoutPlan && user && (
-        <PaymentModal
-          plan={checkoutPlan}
-          user={user}
-          onClose={() => setCheckoutPlan(null)}
-        />
       )}
     </DashLayout>
   );

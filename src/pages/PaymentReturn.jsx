@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const MAX_POLL_ATTEMPTS = 20;  // 20 × 2s = 40 seconds
+const MAX_POLL_ATTEMPTS = 25;  // 25 × 2s = 50 seconds
 const POLL_INTERVAL_MS  = 2000;
-const REDIRECT_DELAY_MS = 2000; // show "Payment Confirmed!" for 2s then go to dashboard
+const INITIAL_DELAY_MS  = 1500; // give webhook time to fire before first check
+const REDIRECT_DELAY_MS = 2000;
 
 export default function PaymentReturn() {
   const [params]           = useSearchParams();
@@ -14,16 +15,17 @@ export default function PaymentReturn() {
   const { refreshProfile } = useAuth();
   const reference          = params.get('reference');
 
-  const [status,  setStatus]  = useState('checking'); // checking | paid | pending | failed | unknown
+  const [status,  setStatus]  = useState('checking');
   const [attempt, setAttempt] = useState(0);
   const redirected            = useRef(false);
 
   useEffect(() => {
     if (!reference) { setStatus('unknown'); return; }
-    checkPayment(0);
+    // Give the webhook a moment to land before the first DB read
+    const t = setTimeout(() => checkPayment(0), INITIAL_DELAY_MS);
+    return () => clearTimeout(t);
   }, [reference]);
 
-  // When payment confirmed: refresh auth context (picks up new subscription_type) then redirect
   useEffect(() => {
     if (status === 'paid' && !redirected.current) {
       redirected.current = true;
@@ -36,11 +38,15 @@ export default function PaymentReturn() {
   async function checkPayment(n) {
     try {
       const { data, error } = supabase
-        ? await supabase.from('payments').select('status, plan').eq('reference', reference).single()
+        ? await supabase
+            .from('payments')
+            .select('status, plan')
+            .eq('reference', reference)
+            .single()
         : { data: null, error: null };
 
       if (error && error.code !== 'PGRST116') {
-        console.error('[PaymentReturn]', error.message);
+        console.warn('[PaymentReturn]', error.message);
       }
 
       if (data?.status === 'paid') {
@@ -57,6 +63,7 @@ export default function PaymentReturn() {
         setAttempt(n + 1);
         setTimeout(() => checkPayment(n + 1), POLL_INTERVAL_MS);
       } else {
+        // Timed out — likely still processing (Paynow can be slow on mobile money)
         setStatus('pending');
       }
     } catch (err) {
@@ -81,7 +88,7 @@ export default function PaymentReturn() {
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Confirming your payment…</h2>
               <p style={{ color: '#6b7280' }}>
-                Please wait while we verify your payment with the provider.
+                Waiting for confirmation from the payment gateway.
                 {attempt > 0 && ` (${attempt}/${MAX_POLL_ATTEMPTS})`}
               </p>
             </>
@@ -110,15 +117,19 @@ export default function PaymentReturn() {
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Payment received — activating…</h2>
               <p style={{ color: '#374151', marginBottom: '1rem' }}>
-                Your payment was received but activation is still processing. This usually takes less than a minute.
-                Your dashboard will reflect the updated plan once activation completes.
+                Your payment was received but the plan activation is still processing.
+                This usually completes within a minute. Your dashboard will reflect
+                the updated plan automatically.
               </p>
-              <p style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '2rem' }}>
+              <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '2rem' }}>
                 Reference: <code style={{ background: '#f3f4f6', padding: '0.1rem 0.4rem', borderRadius: 4 }}>{reference}</code>
               </p>
-              <button className="btn btn-primary" onClick={() => navigate('/dashboard', { replace: true })}>
-                Go to Dashboard
-              </button>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button className="btn btn-primary" onClick={() => navigate('/dashboard', { replace: true })}>
+                  Go to Dashboard
+                </button>
+                <Link to="/pricing" className="btn btn-outline">Back to Pricing</Link>
+              </div>
             </>
           )}
 
@@ -129,7 +140,8 @@ export default function PaymentReturn() {
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Payment not completed</h2>
               <p style={{ color: '#374151', marginBottom: '2rem' }}>
-                Your payment could not be processed. No charge was made to your account. Please try again or choose a different payment method.
+                Your payment could not be processed. No charge was made to your account.
+                Please try again or choose a different payment method.
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button className="btn btn-primary" onClick={() => navigate('/pricing')}>Try Again</button>
@@ -145,9 +157,10 @@ export default function PaymentReturn() {
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>No payment reference found</h2>
               <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
-                This page is shown after completing a payment. If you arrived here by mistake, head back to pricing.
+                This page is shown after completing a payment. If you arrived here
+                by mistake, head back to pricing.
               </p>
-              <button className="btn btn-primary" onClick={() => navigate('/pricing')}>View Pricing</button>
+              <Link to="/pricing" className="btn btn-primary">View Pricing</Link>
             </>
           )}
 
