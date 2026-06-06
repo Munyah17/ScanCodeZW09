@@ -370,7 +370,42 @@ a:hover { color: var(--accent-dark); }
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.hero-image { display: none; } /* removed image in new layout */
+.hero-image { display: none; }
+
+/* ── Brand assets ── */
+.logo-img {
+  height: 38px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+.brand-hero-img {
+  display: block;
+  width: 100%;
+  max-width: 780px;
+  margin: 2.5rem auto 0;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+}
+.brand-banner-strip {
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+.brand-banner-strip img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+.brand-dashboard-img {
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+}
 
 /* Features */
 .features-section, .use-case-section { padding: 4.5rem 0; }

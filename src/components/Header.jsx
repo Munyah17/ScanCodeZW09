@@ -19,8 +19,7 @@ export default function Header() {
     <header className="main-header">
       <div className="header-container">
         <Link to={user ? '/dashboard' : '/'} className="logo">
-          <i className="fas fa-barcode"></i>
-          <span>ScanCodeZW</span>
+          <img src="/assets/brand/logo.png" alt="ScanCodeBQR" className="logo-img" />
         </Link>
 
         <nav className={`main-nav${mobileOpen ? ' open' : ''}`}>

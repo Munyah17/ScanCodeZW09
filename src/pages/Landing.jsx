@@ -47,6 +47,11 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ── Wide banner 1 ── */}
+        <div className="brand-banner-strip">
+          <img src="/assets/brand/banner-wide-1.png" alt="ScanCodeBQR platform" />
+        </div>
+
         {/* ── Features ── */}
         <section id="features" className="features-section">
           <h2>Everything you need.</h2>
@@ -61,6 +66,11 @@ export default function Landing() {
             ))}
           </div>
         </section>
+
+        {/* ── Wide banner 2 ── */}
+        <div className="brand-banner-strip">
+          <img src="/assets/brand/banner-wide-2.png" alt="Create, Customize, Print barcodes instantly" />
+        </div>
 
         {/* ── Pricing ── */}
         <section id="pricing" className="pricing-section">
@@ -123,7 +133,12 @@ export default function Landing() {
 
         {/* ── Use case ── */}
         <section className="use-case-section">
-          <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
+          <img
+            src="/assets/brand/banner-dashboard.png"
+            alt="ScanCodeBQR dashboard — all in one platform"
+            className="brand-dashboard-img"
+          />
+          <div style={{ maxWidth: 700, margin: '2rem auto 0', textAlign: 'center' }}>
             <div className="hero-badge" style={{ justifyContent: 'center' }}>
               <span></span> Real-world example
             </div>
