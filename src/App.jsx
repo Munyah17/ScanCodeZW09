@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminPage from './pages/AdminPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import GenerateBarcode from './pages/GenerateBarcode';
 import Products from './pages/Products';
 import PaymentReturn from './pages/PaymentReturn';
@@ -24,6 +25,14 @@ import DevWallet    from './pages/dev/DevWallet';
 import DevUsage     from './pages/dev/DevUsage';
 import DevDocs      from './pages/dev/DevDocs';
 import { useEffect } from 'react';
+import { useAuth } from './context/AuthContext';
+
+// Routes /admin to SuperAdminDashboard for super_admin, AdminPage for other admins
+function AdminRouter() {
+  const { user } = useAuth();
+  if (user?.isSuperAdmin) return <SuperAdminDashboard />;
+  return <PageTransition><AdminPage /></PageTransition>;
+}
 
 // Page transition wrapper component
 function PageTransition({ children }) {
@@ -114,7 +123,7 @@ export default function App() {
             path="/admin"
             element={
               <ProtectedRoute userType="admin">
-                <PageTransition><AdminPage /></PageTransition>
+                <AdminRouter />
               </ProtectedRoute>
             }
           />
