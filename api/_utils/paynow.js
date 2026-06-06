@@ -12,9 +12,10 @@ import crypto from 'crypto';
 const PAYNOW_INITIATE_URL = 'https://www.paynow.co.zw/interface/initiatetransaction';
 
 function buildHash(fields, integrationKey) {
-  const message = Object.values(fields).join('');
+  // Paynow spec: SHA512(concatenated_field_values + integrationKey)
+  const message = Object.values(fields).join('') + integrationKey;
   return crypto
-    .createHmac('sha512', integrationKey)
+    .createHash('sha512')
     .update(message)
     .digest('hex')
     .toUpperCase();

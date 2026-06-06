@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
-import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -25,7 +24,6 @@ const EMPTY_FORM = {
   generate_qrcode: true,
 };
 
-// Plan limits fallback (used if subscription query returns null)
 const PLAN_LIMITS = {
   free:       { max_products: 1,   max_variations_per_product: 1   },
   starter:    { max_products: 3,   max_variations_per_product: 3   },
@@ -51,9 +49,7 @@ export default function GenerateBarcode() {
   const [copyMsg,      setCopyMsg]      = useState('');
   const [qrDataUrl,    setQrDataUrl]    = useState('');
 
-  const displaySvgRef  = useRef(null);
-  const exportSvgRef   = useRef(null);
-  const exportDivRef   = useRef(null);
+  const displaySvgRef = useRef(null);
 
   const isAdmin = user?.user_type === 'admin';
 
@@ -61,7 +57,7 @@ export default function GenerateBarcode() {
 
   useEffect(() => {
     if (!generated) return;
-    const tid = setTimeout(() => renderBarcodes(generated.barcode_data, generated.barcode_format, form.generate_qrcode), 80);
+    const tid = setTimeout(() => renderDisplay(generated.barcode_data, generated.barcode_format, form.generate_qrcode), 80);
     return () => clearTimeout(tid);
   }, [generated]);
 
@@ -93,7 +89,8 @@ export default function GenerateBarcode() {
     }
   };
 
-  const renderBarcodes = (barcodeValue, format, doQR) => {
+  // Render the visible SVG barcode and generate the QR data URL
+  const renderDisplay = (barcodeValue, format, doQR) => {
     const isUPCA = format === 'UPCA';
     const opts = {
       format:       isUPCA ? 'UPC' : 'EAN13',
@@ -106,7 +103,6 @@ export default function GenerateBarcode() {
     };
     try {
       if (displaySvgRef.current) JsBarcode(displaySvgRef.current, barcodeValue, opts);
-      if (exportSvgRef.current)  JsBarcode(exportSvgRef.current,  barcodeValue, opts);
     } catch (e) {
       console.error('[JsBarcode]', e.message);
     }
@@ -120,6 +116,67 @@ export default function GenerateBarcode() {
       setQrDataUrl('');
     }
   };
+
+  // Build a fully-composed barcode canvas (label + bars + number) using JsBarcode canvas mode
+  const buildBarcodeCanvas = useCallback(() => {
+    if (!generated) return null;
+    const isUPCA = generated.barcode_format === 'UPCA';
+
+    // Render barcode onto a scratch canvas
+    const bcCanvas = document.createElement('canvas');
+    try {
+      JsBarcode(bcCanvas, generated.barcode_data, {
+        format:       isUPCA ? 'UPC' : 'EAN13',
+        width:        2.2,
+        height:       120,
+        displayValue: false,
+        margin:       10,
+        background:   '#ffffff',
+        lineColor:    '#000000',
+      });
+    } catch (e) {
+      console.error('[JsBarcode canvas]', e);
+      return null;
+    }
+
+    // Compose: label + barcode + number on a white canvas
+    const labelText  = generated.product_name
+      + (generated.variation_value ? ` – ${generated.variation_value}` : '');
+    const PAD_X      = 28;
+    const PAD_TOP    = 20;
+    const PAD_BOT    = 16;
+    const LABEL_H    = 28;
+    const NUM_H      = 26;
+    const GAP        = 6;
+    const W          = bcCanvas.width + PAD_X * 2;
+    const H          = PAD_TOP + LABEL_H + GAP + bcCanvas.height + GAP + NUM_H + PAD_BOT;
+
+    const out = document.createElement('canvas');
+    out.width  = W;
+    out.height = H;
+    const ctx  = out.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle    = '#000000';
+    ctx.font         = 'bold 17px Arial, Helvetica, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(labelText, W / 2, PAD_TOP, W - PAD_X * 2);
+
+    ctx.drawImage(bcCanvas, PAD_X, PAD_TOP + LABEL_H + GAP);
+
+    ctx.font = '14px "Courier New", Courier, monospace';
+    ctx.fillText(
+      formatEAN13Display(generated.barcode_data),
+      W / 2,
+      PAD_TOP + LABEL_H + GAP + bcCanvas.height + GAP,
+      W - PAD_X * 2,
+    );
+
+    return out;
+  }, [generated]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -143,7 +200,6 @@ export default function GenerateBarcode() {
 
     setSubmitting(true);
     try {
-      // Admins have unlimited access; regular users check plan limits
       const fallback    = PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter;
       const rawMaxP     = user?.enterprise_config?.max_products   ?? subscription?.max_products   ?? fallback.max_products;
       const rawMaxV     = user?.enterprise_config?.max_variations ?? subscription?.max_variations_per_product ?? fallback.max_variations_per_product;
@@ -181,14 +237,6 @@ export default function GenerateBarcode() {
       const countryStd  = COUNTRY_STANDARDS[form.barcode_country] ?? COUNTRY_STANDARDS.ZW;
       const barcodeData = generateEAN13(form.barcode_country);
 
-      // Generate QR data URL to store
-      let qrUrl = null;
-      if (form.generate_qrcode) {
-        try {
-          qrUrl = await QRCode.toDataURL(barcodeData, { width: 200, margin: 2, errorCorrectionLevel: 'M' });
-        } catch { /* non-fatal */ }
-      }
-
       const { data: newVariation, error: varErr } = await supabase
         .from('variations')
         .insert({
@@ -214,54 +262,49 @@ export default function GenerateBarcode() {
     }
   };
 
-  // ── Export helpers ─────────────────────────────────────────────────────────
+  // ── Download helpers (all use buildBarcodeCanvas — no html2canvas) ──────────
 
-  const captureCanvas = useCallback(async () => {
-    if (!exportDivRef.current) return null;
-    return html2canvas(exportDivRef.current, { backgroundColor: '#ffffff', scale: 3, useCORS: true });
-  }, []);
-
-  const downloadPNG = useCallback(async () => {
+  const downloadPNG = useCallback(() => {
     if (!generated) return;
-    const canvas  = await captureCanvas();
+    const canvas = buildBarcodeCanvas();
     if (!canvas) return;
-    // Scale to 38mm @ 300 DPI = 449px wide
-    const TARGET  = Math.round(38 / 25.4 * 300);
-    const out     = document.createElement('canvas');
-    out.width     = TARGET;
-    out.height    = Math.round(canvas.height * (TARGET / canvas.width));
+    // Scale to GS1 standard: 38mm @ 300 DPI = 449 px wide
+    const TARGET = Math.round(38 / 25.4 * 300);
+    const out    = document.createElement('canvas');
+    out.width    = TARGET;
+    out.height   = Math.round(canvas.height * TARGET / canvas.width);
     out.getContext('2d').drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, out.width, out.height);
     const link    = document.createElement('a');
     link.download = `barcode_${generated.barcode_data}.png`;
     link.href     = out.toDataURL('image/png');
     link.click();
-  }, [generated, captureCanvas]);
+  }, [generated, buildBarcodeCanvas]);
 
-  const downloadJPEG = useCallback(async () => {
+  const downloadJPEG = useCallback(() => {
     if (!generated) return;
-    const canvas  = await captureCanvas();
+    const canvas  = buildBarcodeCanvas();
     if (!canvas) return;
     const link    = document.createElement('a');
     link.download = `barcode_${generated.barcode_data}.jpg`;
     link.href     = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
-  }, [generated, captureCanvas]);
+  }, [generated, buildBarcodeCanvas]);
 
-  const generatePDF = useCallback(async () => {
+  const generatePDF = useCallback(() => {
     if (!generated) return;
-    const canvas = await captureCanvas();
+    const canvas = buildBarcodeCanvas();
     if (!canvas) return;
     const pdf    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const imgW   = 80;
-    const imgH   = (canvas.height * imgW) / canvas.width;
+    const imgH   = canvas.height * imgW / canvas.width;
     const x      = (pdf.internal.pageSize.getWidth() - imgW) / 2;
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, 20, imgW, imgH);
     pdf.save(`barcode_${generated.barcode_data}.pdf`);
-  }, [generated, captureCanvas]);
+  }, [generated, buildBarcodeCanvas]);
 
-  const printBarcode = useCallback(async () => {
-    if (!exportDivRef.current) return;
-    const canvas = await captureCanvas();
+  const printBarcode = useCallback(() => {
+    if (!generated) return;
+    const canvas = buildBarcodeCanvas();
     if (!canvas) return;
     const win = window.open('', '_blank');
     win.document.write(`<!DOCTYPE html><html><head><title>Barcode</title>
@@ -269,7 +312,7 @@ export default function GenerateBarcode() {
       </head><body><img src="${canvas.toDataURL('image/png')}" /></body></html>`);
     win.document.close();
     win.onload = () => { win.print(); win.close(); };
-  }, [captureCanvas]);
+  }, [generated, buildBarcodeCanvas]);
 
   const copyBarcode = useCallback(async () => {
     if (!generated) return;
@@ -304,34 +347,14 @@ export default function GenerateBarcode() {
 
       {/* ── Generated output ── */}
       {generated && (
-        <div className="dp-card dp-generate-output">
-          <h3 className="dp-generate-heading"><i className="fas fa-check-circle" style={{ color: '#10b981' }}></i> Barcode Generated</h3>
+        <>
+          {/* Barcode card */}
+          <div className="dp-card dp-generate-output" style={{ marginBottom: '1rem' }}>
+            <h3 className="dp-generate-heading">
+              <i className="fas fa-barcode" style={{ color: '#3b82f6' }}></i> Barcode
+            </h3>
 
-          <div className="dp-barcode-display">
-
-            {/* Barcode card — matches GS1 retail layout */}
-            <div className="dp-barcode-image-container">
-              {/* Hidden export element captured by html2canvas */}
-              <div
-                ref={exportDivRef}
-                style={{
-                  position: 'absolute', left: '-9999px', top: 0,
-                  background: '#fff', padding: '20px 24px 14px',
-                  display: 'inline-block', textAlign: 'center',
-                  fontFamily: 'Arial, Helvetica, sans-serif',
-                  color: '#000',
-                }}
-              >
-                <div style={{ fontWeight: '700', fontSize: '17px', marginBottom: '8px', letterSpacing: '0.02em', color: '#000' }}>
-                  {labelText}
-                </div>
-                <svg ref={exportSvgRef} style={{ display: 'block', margin: '0 auto' }}></svg>
-                <div style={{ fontSize: '14px', letterSpacing: '4px', marginTop: '6px', fontFamily: "'Courier New', monospace", color: '#000' }}>
-                  {formatEAN13Display(generated.barcode_data)}
-                </div>
-              </div>
-
-              {/* Visible card — white background for scannability */}
+            <div className="dp-barcode-single-col">
               <div className="dp-professional-barcode">
                 <div className="dp-barcode-product-label">{labelText}</div>
                 <svg ref={displaySvgRef}></svg>
@@ -345,33 +368,45 @@ export default function GenerateBarcode() {
               </div>
             </div>
 
-            {/* QR code */}
-            {form.generate_qrcode && qrDataUrl && (
-              <div className="dp-qrcode-container">
-                <h4>QR Code</h4>
-                <img src={qrDataUrl} alt="QR Code" width={180} height={180} style={{ display: 'block', margin: '0 auto 0.75rem', borderRadius: 8 }} />
-                <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '0.75rem' }}>Scan to verify product barcode</p>
-                <button onClick={downloadQR} className="dp-btn dp-btn-ghost dp-btn-sm">
-                  <i className="fas fa-download"></i> Download QR PNG
+            {/* Download bar */}
+            <div className="dp-download-options" style={{ marginTop: '1.25rem' }}>
+              <h4><i className="fas fa-download"></i> Download Barcode</h4>
+              <div className="dp-download-buttons">
+                <button onClick={downloadPNG}  className="dp-btn dp-btn-primary"><i className="fas fa-image"></i> PNG (38mm·300dpi)</button>
+                <button onClick={downloadJPEG} className="dp-btn dp-btn-ghost"><i className="fas fa-image"></i> JPEG</button>
+                <button onClick={generatePDF}  className="dp-btn dp-btn-ghost"><i className="fas fa-file-pdf"></i> PDF</button>
+                <button onClick={printBarcode}  className="dp-btn dp-btn-ghost"><i className="fas fa-print"></i> Print</button>
+                <button onClick={copyBarcode}   className="dp-btn dp-btn-ghost">
+                  <i className={`fas fa-${copyMsg ? 'check' : 'copy'}`}></i> {copyMsg || 'Copy Number'}
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* Download bar */}
-          <div className="dp-download-options">
-            <h4><i className="fas fa-download"></i> Download &amp; Export</h4>
-            <div className="dp-download-buttons">
-              <button onClick={downloadPNG}  className="dp-btn dp-btn-primary"><i className="fas fa-image"></i> PNG (38mm·300dpi)</button>
-              <button onClick={downloadJPEG} className="dp-btn dp-btn-ghost"><i className="fas fa-image"></i> JPEG</button>
-              <button onClick={generatePDF}  className="dp-btn dp-btn-ghost"><i className="fas fa-file-pdf"></i> PDF</button>
-              <button onClick={printBarcode}  className="dp-btn dp-btn-ghost"><i className="fas fa-print"></i> Print</button>
-              <button onClick={copyBarcode}   className="dp-btn dp-btn-ghost">
-                <i className={`fas fa-${copyMsg ? 'check' : 'copy'}`}></i> {copyMsg || 'Copy Number'}
-              </button>
             </div>
           </div>
-        </div>
+
+          {/* QR code card — separate from barcode */}
+          {form.generate_qrcode && qrDataUrl && (
+            <div className="dp-card dp-generate-output" style={{ marginBottom: '1.25rem' }}>
+              <h3 className="dp-generate-heading">
+                <i className="fas fa-qrcode" style={{ color: '#10b981' }}></i> QR Code
+              </h3>
+
+              <div className="dp-qrcode-standalone">
+                <img src={qrDataUrl} alt="QR Code" width={180} height={180} />
+                <div className="dp-qrcode-info">
+                  <p style={{ fontSize: '0.875rem', color: '#9ca3af', margin: '0 0 0.75rem' }}>
+                    Encodes the barcode number — scan to verify product identity.
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#4b5563', margin: '0 0 1rem', fontFamily: 'monospace' }}>
+                    {generated.barcode_data}
+                  </p>
+                  <button onClick={downloadQR} className="dp-btn dp-btn-primary">
+                    <i className="fas fa-download"></i> Download QR PNG
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Form ── */}

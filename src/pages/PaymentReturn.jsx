@@ -16,6 +16,7 @@ export default function PaymentReturn() {
   const reference          = params.get('reference');
 
   const [status,  setStatus]  = useState('checking');
+  const [plan,    setPlan]    = useState(null);
   const [attempt, setAttempt] = useState(0);
   const redirected            = useRef(false);
 
@@ -49,6 +50,9 @@ export default function PaymentReturn() {
         console.warn('[PaymentReturn]', error.message);
       }
 
+      // Always capture the plan so retry links work
+      if (data?.plan) setPlan(data.plan);
+
       if (data?.status === 'paid') {
         setStatus('paid');
         return;
@@ -75,6 +79,9 @@ export default function PaymentReturn() {
       }
     }
   }
+
+  // Build the checkout retry URL — falls back to /pricing if plan is unknown
+  const retryUrl = plan ? `/checkout?plan=${plan}` : '/pricing';
 
   return (
     <Layout>
@@ -141,12 +148,24 @@ export default function PaymentReturn() {
               <h2 style={{ marginBottom: '0.5rem' }}>Payment not completed</h2>
               <p style={{ color: '#374151', marginBottom: '2rem' }}>
                 Your payment could not be processed. No charge was made to your account.
-                Please try again or choose a different payment method.
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button className="btn btn-primary" onClick={() => navigate('/pricing')}>Try Again</button>
-                <button className="btn btn-outline" onClick={() => navigate('/dashboard')}>Go to Dashboard</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => navigate(retryUrl)}
+                >
+                  Try Again
+                </button>
+                <button
+                  className="btn btn-outline"
+                  onClick={() => navigate(retryUrl)}
+                >
+                  Use a different payment method
+                </button>
               </div>
+              <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '1.25rem' }}>
+                Both options return you to the checkout page where you can select any payment method.
+              </p>
             </>
           )}
 

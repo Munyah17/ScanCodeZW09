@@ -1,18 +1,18 @@
 /**
  * POST /api/dev/topup
  * Body: { amount, gateway: 'stripe' | 'paynow' }
+ *
  * Initiates a wallet top-up checkout session.
+ * Both gateways redirect the user to the provider's hosted checkout —
+ * we never collect or process payment information here.
  * On payment success the Stripe/Paynow webhook credits the wallet.
  */
 
-import Stripe             from 'stripe';
-import { createRequire }  from 'module';
-import { requireAuth }    from '../_utils/require-auth.js';
-import { ensureWallet }   from '../_utils/wallet-ops.js';
-import { j }              from '../_utils/response.js';
-
-const require        = createRequire(import.meta.url);
-const { Paynow }     = require('paynow');
+import Stripe                from 'stripe';
+import { initiateWebPayment } from '../_utils/paynow.js';
+import { requireAuth }        from '../_utils/require-auth.js';
+import { ensureWallet }       from '../_utils/wallet-ops.js';
+import { j }                  from '../_utils/response.js';
 
 const MIN_TOPUP = 5;
 const MAX_TOPUP = 500;
@@ -39,9 +39,9 @@ export default async (req) => {
 
   await ensureWallet(auth.userId);
 
-  const reference = `DEV-TOPUP-${auth.userId}-${Date.now()}`;
-  const appUrl    = process.env.APP_URL ?? 'http://localhost:8888';
-  const devUrl    = process.env.DEV_PORTAL_URL ?? `${appUrl}/dev`;
+  const reference  = `DEV-TOPUP-${auth.userId}-${Date.now()}`;
+  const appUrl     = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+  const devUrl     = process.env.DEV_PORTAL_URL ?? `${appUrl}/dev`;
   const successUrl = `${devUrl}/wallet?topped_up=true&reference=${encodeURIComponent(reference)}`;
   const cancelUrl  = `${devUrl}/wallet`;
 
@@ -50,8 +50,8 @@ export default async (req) => {
     if (!process.env.STRIPE_SECRET_KEY) {
       return j({ error: 'Card payments not configured.' }, 503);
     }
-    const stripe  = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-    const cents   = Math.round(usd * 100);
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+    const cents  = Math.round(usd * 100);
 
     try {
       const session = await stripe.checkout.sessions.create({
@@ -76,24 +76,31 @@ export default async (req) => {
     }
   }
 
-  // ── Paynow ──────────────────────────────────────────────────────────────────
+  // ── Paynow (web redirect — Paynow hosts the entire checkout) ────────────────
   const integrationId  = process.env.PAYNOW_INTEGRATION_ID;
   const integrationKey = process.env.PAYNOW_INTEGRATION_KEY;
   if (!integrationId || integrationId === 'REPLACE_ME') {
     return j({ error: 'Paynow not configured.' }, 503);
   }
 
-  const paynow = new Paynow(integrationId, integrationKey);
-  paynow.resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
-  paynow.returnUrl = successUrl;
-
-  const payment = paynow.createPayment(reference, auth.email ?? '');
-  payment.add(`Developer Wallet Top-up $${usd.toFixed(2)}`, usd);
-
   try {
-    const response = await paynow.send(payment);
-    if (!response.success) return j({ error: response.error || 'Paynow initiation failed.' }, 502);
-    return j({ success: true, redirectUrl: response.redirectUrl, reference });
+    const result = await initiateWebPayment({
+      integrationId,
+      integrationKey,
+      reference,
+      amount:      usd,
+      email:       auth.email ?? '',
+      description: `ScanCodeZW Developer Wallet — $${usd.toFixed(2)} Top-up`,
+      resultUrl:   process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`,
+      returnUrl:   successUrl,
+    });
+
+    if (!result.success) {
+      console.error('[dev/topup paynow]', result.error);
+      return j({ error: result.error || 'Paynow initiation failed.' }, 502);
+    }
+
+    return j({ success: true, redirectUrl: result.redirectUrl, reference });
   } catch (err) {
     console.error('[dev/topup paynow]', err.message);
     return j({ error: 'Failed to initiate Paynow payment.' }, 500);

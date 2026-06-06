@@ -6,7 +6,8 @@ export default function Header() {
   const { user, logout } = useAuth();
   const location         = useLocation();
   const navigate         = useNavigate();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const isActive = (path) => location.pathname === path ? 'active' : '';
 
@@ -40,12 +41,16 @@ export default function Header() {
               </Link>
 
               {/* Avatar dropdown */}
-              <div className="user-dropdown">
-                <button className="user-menu avatar-menu">
+              <div className={`user-dropdown${dropdownOpen ? ' open' : ''}`}>
+                <button
+                  className="user-menu avatar-menu"
+                  onClick={() => setDropdownOpen(d => !d)}
+                  aria-expanded={dropdownOpen}
+                >
                   <span className="avatar-circle">{initials}</span>
                   <span className="avatar-name">{user.username}</span>
                   {user.isStaff && <span className="admin-badge-nav">{user.isSuperAdmin ? 'SUPER ADMIN' : user.user_type === 'admin' ? 'ADMIN' : 'STAFF'}</span>}
-                  <i className="fas fa-chevron-down"></i>
+                  <i className={`fas fa-chevron-${dropdownOpen ? 'up' : 'down'}`}></i>
                 </button>
                 <div className="dropdown-content">
                   <div className="dropdown-header">
@@ -53,10 +58,10 @@ export default function Header() {
                     <small>{user.email}</small>
                   </div>
                   <div className="dropdown-divider"></div>
-                  <Link to="/profile"  onClick={() => setMobileOpen(false)}><i className="fas fa-user-circle"></i> My Profile</Link>
-                  <Link to="/my-barcodes" onClick={() => setMobileOpen(false)}><i className="fas fa-th"></i> My Barcodes</Link>
-                  <Link to="/settings" onClick={() => setMobileOpen(false)}><i className="fas fa-cog"></i> Settings</Link>
-                  <Link to="/pricing"  onClick={() => setMobileOpen(false)}><i className="fas fa-crown"></i> Upgrade Plan</Link>
+                  <Link to="/profile"     onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-user-circle"></i> My Profile</Link>
+                  <Link to="/my-barcodes" onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-th"></i> My Barcodes</Link>
+                  <Link to="/settings"    onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-cog"></i> Settings</Link>
+                  <Link to="/pricing"     onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-crown"></i> Upgrade Plan</Link>
                   <div className="dropdown-divider"></div>
                   <button className="dropdown-logout" onClick={handleLogout}>
                     <i className="fas fa-sign-out-alt"></i> Logout

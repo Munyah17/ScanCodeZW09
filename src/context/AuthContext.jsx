@@ -78,19 +78,38 @@ export function AuthProvider({ children }) {
     if (!supabase) return { success: false, error: 'Database not configured.' };
     setLoading(true);
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username },
-        emailRedirectTo: undefined,
-      },
-    });
+    const attemptSignUp = (uname) =>
+      supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username: uname }, emailRedirectTo: undefined },
+      });
+
+    let { data: signUpData, error: signUpError } = await attemptSignUp(username);
+
+    // Trigger failure is usually a username unique-constraint collision.
+    // Retry once with a short random suffix to resolve it.
+    if (signUpError) {
+      const msg = signUpError.message?.toLowerCase?.() ?? '';
+      const isDbTriggerError =
+        msg.includes('database error') ||
+        msg.includes('saving new user') ||
+        msg.includes('register new user') ||
+        msg.includes('failed to create');
+      if (isDbTriggerError) {
+        const suffix = Math.random().toString(36).slice(2, 6);
+        const { data: retryData, error: retryError } = await attemptSignUp(`${username}_${suffix}`);
+        if (!retryError) {
+          signUpData  = retryData;
+          signUpError = null;
+        }
+      }
+    }
 
     if (signUpError) {
       setLoading(false);
       const msg = signUpError.message?.toLowerCase?.() ?? '';
-      if (msg.includes('already registered') || msg.includes('already exists')) {
+      if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user already')) {
         return { success: false, error: 'An account with this email already exists. Please log in instead.' };
       }
       return { success: false, error: signUpError.message };

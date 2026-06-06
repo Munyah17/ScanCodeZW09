@@ -46,7 +46,7 @@ export default async (req) => {
   const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
   const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
   const resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
-  const returnUrl = process.env.PAYNOW_RETURN_URL  ?? `${appUrl}/payment/return?reference=${encodeURIComponent(reference)}`;
+  const returnUrl = `${process.env.PAYNOW_RETURN_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&plan=${encodeURIComponent(plan)}`;
 
   try {
     const result = await initiateWebPayment({

@@ -41,7 +41,7 @@ body {
   line-height: 1.65;
   color: var(--dark-color);
   background: linear-gradient(135deg, #f4f4f5 0%, #e8e8e8 100%);
-  background-attachment: fixed;
+  /* background-attachment: fixed removed — causes scroll jank on iOS Safari */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -76,6 +76,7 @@ a:hover { color: var(--accent-dark); }
   white-space: nowrap;
   position: relative;
   overflow: hidden;
+  touch-action: manipulation; /* remove 300ms tap delay on mobile */
 }
 .btn::before {
   content: '';
@@ -217,7 +218,8 @@ a:hover { color: var(--accent-dark); }
 }
 .dropdown-content a:hover { background: rgba(79, 70, 229, 0.1); color: var(--accent-color); transform: translateX(4px); }
 .dropdown-divider { height: 1px; background: #f3f4f6; margin: 0; }
-.user-dropdown:hover .dropdown-content { display: block; }
+.user-dropdown:hover .dropdown-content,
+.user-dropdown.open  .dropdown-content { display: block; }
 .admin-badge-nav {
   display: inline-block;
   background: var(--accent-color);
@@ -1058,7 +1060,9 @@ a:hover { color: var(--accent-dark); }
 
 .dp-root {
   display: flex;
-  height: 100vh; width: 100vw;
+  height: 100vh; /* fallback */
+  height: 100dvh; /* dynamic viewport — shrinks with mobile keyboard */
+  width: 100vw;
   background: #0c0c0c;
   color: #f0f0f0;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
@@ -1307,13 +1311,14 @@ a:hover { color: var(--accent-dark); }
   }
   .dp-mobile-hamburger { display: flex; }
   .dp-topbar  { padding: 0.75rem 1rem; gap: 0.5rem; }
-  .dp-content { padding: 1rem; }
-  .dp-content-page { padding: 1rem; }
+  /* Title takes remaining space so it sits left of any action buttons */
+  .dp-title   { font-size: 1rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dp-content { padding: 0.875rem; }
+  .dp-content-page { padding: 0.875rem; }
   .dp-overview-2col { grid-template-columns: 1fr; }
   .dp-cards-2col    { grid-template-columns: 1fr; }
-  .dp-title { font-size: 1rem; }
   .dp-filter-btn { padding: 0.22rem 0.45rem; font-size: 0.74rem; }
-  .dp-section { padding: 1rem; }
+  .dp-section { padding: 0.875rem; }
   .dp-topbar-actions { flex-shrink: 0; }
 }
 
@@ -2137,84 +2142,6 @@ a:hover { color: var(--accent-dark); }
 
 .pm-secure { margin-top: 0.875rem; font-size: 0.75rem; color: #374151; text-align: center; }
 
-/* ── EcoCash USSD flow ───────────────────────────────────────────────────── */
-.pm-back-btn {
-  background: none; border: none; padding: 0;
-  color: #6b7280; font-size: 0.85rem; cursor: pointer;
-  margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.3rem;
-}
-.pm-back-btn:hover { color: #111827; }
-
-.pm-ecocash-step { display: flex; flex-direction: column; }
-
-.pm-ecocash-header {
-  display: flex; align-items: center; gap: 1rem;
-  padding: 1rem; background: #fff5f5; border-radius: 10px;
-  border: 1px solid #fecaca; margin-bottom: 1.25rem;
-}
-.pm-ecocash-title { font-weight: 700; font-size: 0.95rem; color: #111827; margin: 0; }
-.pm-ecocash-amount { font-size: 0.8rem; color: #6b7280; margin: 0.15rem 0 0; }
-
-.pm-ecocash-field { margin-bottom: 1rem; }
-.pm-ecocash-field label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
-
-.pm-ecocash-input-wrap {
-  display: flex; align-items: center;
-  border: 1.5px solid #d1d5db; border-radius: 8px;
-  overflow: hidden; background: white;
-  transition: border-color 0.15s;
-}
-.pm-ecocash-input-wrap:focus-within { border-color: #E31E24; }
-.pm-ecocash-prefix {
-  padding: 0.7rem 0.75rem;
-  background: #f9fafb; color: #6b7280;
-  font-size: 0.875rem; font-weight: 600;
-  border-right: 1.5px solid #e5e7eb;
-  white-space: nowrap;
-}
-.pm-ecocash-input-wrap input {
-  flex: 1; padding: 0.7rem 0.75rem;
-  border: none; outline: none; font-size: 0.95rem; color: #111827;
-  background: white; letter-spacing: 0.05em;
-}
-.pm-ecocash-hint { font-size: 0.75rem; color: #9ca3af; margin: 0.4rem 0 0; }
-
-/* ── EcoCash pending state ── */
-.pm-ecocash-pending { text-align: center; padding: 0.5rem 0; }
-.pm-pending-icon { margin-bottom: 1rem; }
-.pm-pending-title { font-size: 1.15rem; font-weight: 700; color: #111827; margin: 0 0 0.4rem; }
-.pm-pending-sub { font-size: 0.875rem; color: #6b7280; margin: 0 0 1.5rem; }
-
-.pm-pending-steps {
-  list-style: none; padding: 0; margin: 0 0 1.25rem;
-  display: flex; flex-direction: column; gap: 0.75rem;
-  text-align: left;
-}
-.pm-pending-steps li {
-  display: flex; align-items: flex-start; gap: 0.75rem;
-  font-size: 0.85rem; color: #374151;
-}
-.pm-step-num {
-  width: 22px; height: 22px; flex-shrink: 0;
-  border-radius: 50%; background: #E31E24;
-  color: white; font-size: 0.7rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 1px;
-}
-
-.pm-pending-note {
-  display: flex; align-items: flex-start; gap: 0.5rem;
-  background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
-  padding: 0.75rem; text-align: left;
-  font-size: 0.78rem; color: #6b7280; line-height: 1.4;
-}
-
-.pm-pending-instructions {
-  background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
-  padding: 0.75rem 1rem; font-size: 0.83rem; color: #92400e;
-  text-align: left; margin-bottom: 0.75rem; line-height: 1.5;
-}
-
 /* ── Admin tabs ─────────────────────────────────────────────────────────── */
 .admin-tabs {
   display: flex;
@@ -2554,7 +2481,10 @@ a:hover { color: var(--accent-dark); }
 .dp-content-page {
   padding: 1.5rem 2rem;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+  overscroll-behavior-y: contain;
 }
 
 /* ── Section card ─────────────────────────────────────────────────────────── */
@@ -2684,6 +2614,7 @@ a:hover { color: var(--accent-dark); }
   border: none;
   transition: opacity 0.15s, background 0.15s;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 .dp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .dp-btn-primary  { background: #3b82f6; color: #fff; }
@@ -2885,7 +2816,7 @@ a:hover { color: var(--accent-dark); }
 .dp-row-actions { display: flex; gap: 0.35rem; }
 
 /* ── Generate Barcode Page (dark theme) ─────────────────────────────────── */
-.dp-generate-output { margin-bottom: 1.25rem; }
+.dp-generate-output { margin-bottom: 0; }
 .dp-generate-heading {
   font-size: 1.05rem;
   font-weight: 600;
@@ -2896,17 +2827,12 @@ a:hover { color: var(--accent-dark); }
   gap: 0.5rem;
 }
 
-.dp-barcode-display {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.dp-barcode-image-container {
+/* Single-column barcode display — barcode and QR are now separate cards */
+.dp-barcode-single-col {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  gap: 1rem;
 }
 
 .dp-professional-barcode {
@@ -2917,8 +2843,7 @@ a:hover { color: var(--accent-dark); }
   text-align: center;
   width: 100%;
   max-width: 380px;
-  margin-bottom: 1rem;
-  display: inline-block;
+  display: block;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   box-sizing: border-box;
 }
@@ -2930,6 +2855,7 @@ a:hover { color: var(--accent-dark); }
   margin-bottom: 0.5rem;
   color: #111827;
   letter-spacing: 0.02em;
+  overflow-wrap: break-word;
 }
 
 .dp-barcode-number {
@@ -2954,6 +2880,24 @@ a:hover { color: var(--accent-dark); }
 .dp-barcode-meta span { background: rgba(255,255,255,0.04); padding: 0.3rem 0.6rem; border-radius: 6px; }
 .dp-barcode-meta strong { color: #d1d5db; }
 
+/* QR code standalone card (separate from barcode card) */
+.dp-qrcode-standalone {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.dp-qrcode-standalone img {
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.dp-qrcode-info { flex: 1; min-width: 0; }
+@media (max-width: 600px) {
+  .dp-qrcode-standalone { flex-direction: column; align-items: center; text-align: center; }
+  .dp-qrcode-info { text-align: center; }
+}
+
+/* Legacy container kept for backwards compat — no longer used in generate page */
 .dp-qrcode-container {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
@@ -3002,7 +2946,7 @@ a:hover { color: var(--accent-dark); }
 }
 .dp-info-box-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   gap: 0.4rem;
 }
 .dp-info-box-grid p {
@@ -3036,6 +2980,8 @@ a:hover { color: var(--accent-dark); }
 
 @media (max-width: 768px) {
   .dp-barcode-display { grid-template-columns: 1fr; }
+  .dp-barcode-single-col { align-items: center; }
+  .dp-professional-barcode { max-width: 100%; }
   .dp-download-buttons { flex-direction: column; }
   .dp-download-buttons .dp-btn { width: 100%; justify-content: center; }
   .dp-generate-actions { flex-direction: column; }
@@ -3112,17 +3058,36 @@ img, video, canvas, svg, iframe {
     z-index: 110;
     max-height: calc(100dvh - 56px);
     overflow-y: auto;
+    /* Ensure items stack nicely */
+    gap: 0.25rem;
   }
   .main-nav.open a,
   .main-nav.open .user-dropdown { font-size: 0.95rem; }
-  .user-dropdown { position: static; }
+  /* Nav links fill the full width for easy tapping */
+  .main-nav.open > a {
+    display: block;
+    padding: 0.65rem 0.5rem;
+    border-radius: 8px;
+  }
+  .main-nav.open > a:hover { background: rgba(79,70,229,0.08); }
+  .user-dropdown { position: static; width: 100%; }
+  .user-dropdown .user-menu.avatar-menu {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0.65rem 0.5rem;
+    border-radius: 8px;
+  }
+  .user-dropdown .user-menu.avatar-menu:hover { background: rgba(79,70,229,0.08); }
   .dropdown-content {
     position: static;
     box-shadow: none;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    margin-top: 0.5rem;
+    margin-top: 0.25rem;
+    /* Hidden by default; shown via .open class (JS toggle) */
+    display: none;
   }
+  .user-dropdown.open .dropdown-content { display: block; }
 }
 
 /* ── Public page hero ─────────────────────────────────────────────────────── */
@@ -3132,6 +3097,18 @@ img, video, canvas, svg, iframe {
   .hero .subtitle { font-size: 0.95rem; }
   .cta-buttons { flex-direction: column; align-items: center; }
   .cta-buttons .btn { width: 100%; max-width: 320px; justify-content: center; }
+
+  /* Stop all floating/pulsing animations — "freeplay" issue */
+  .hero::before           { animation: none !important; }
+  .hero-badge             { animation: none !important; }
+  .hero-badge span        { animation: none !important; }
+  .hero h1                { animation: none !important; opacity: 1; transform: none; }
+  .hero .subtitle         { animation: none !important; opacity: 1; transform: none; }
+  .cta-buttons            { animation: none !important; opacity: 1; transform: none; }
+  .pricing-card.popular::after { animation: none !important; }
+  .ent-dot                { animation: none !important; }
+  .feature-card:hover     { transform: none; }
+  .pricing-card:hover     { transform: none; }
 }
 
 /* ── Feature stats strip ─────────────────────────────────────────────────── */
@@ -3218,6 +3195,10 @@ img, video, canvas, svg, iframe {
 
 /* ── Dark dashboard page elements ────────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Reduce content page padding on mobile */
+  .dp-content-page { padding: 0.875rem; }
+  .dp-content      { padding: 0.875rem; }
+
   /* Two-col grid → single col */
   .dp-2col           { grid-template-columns: 1fr; }
   .dp-form-grid      { grid-template-columns: 1fr; }
@@ -3225,9 +3206,11 @@ img, video, canvas, svg, iframe {
   .dp-plan-grid-premium { grid-template-columns: 1fr; }
   .dp-stat-row       { grid-template-columns: 1fr 1fr; }
 
-  /* Barcode display: stack columns */
+  /* Barcode display: centre on mobile */
   .dp-barcode-display { grid-template-columns: 1fr; }
   .dp-barcode-image-container { align-items: center; }
+  .dp-barcode-single-col { align-items: center; }
+  .dp-professional-barcode { max-width: 100%; }
 
   /* Download / action button rows → full width stack */
   .dp-download-buttons { flex-direction: column; }
@@ -3243,12 +3226,16 @@ img, video, canvas, svg, iframe {
   /* Section header stacks on narrow */
   .dp-section-header { flex-wrap: wrap; }
 
-  /* Barcode grid → 1 column on phones */
+  /* Barcode grid */
   .dp-barcode-grid { grid-template-columns: 1fr 1fr; }
 
   /* Admin tabs wrap */
   .admin-tabs { flex-wrap: wrap; gap: 0.15rem; }
   .admin-tab { font-size: 0.8rem; padding: 0.5rem 0.75rem; }
+
+  /* Card padding reduced */
+  .dp-card { padding: 1rem 0.875rem 0.875rem; }
+  .dp-section { padding: 0.875rem; }
 }
 
 @media (max-width: 480px) {
