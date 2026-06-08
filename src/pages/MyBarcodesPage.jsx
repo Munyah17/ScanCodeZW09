@@ -9,6 +9,9 @@ import { formatEAN13Display, COUNTRY_STANDARDS } from '../utils/barcodeUtils';
 import DashLayout from '../components/DashLayout';
 import { Link } from 'react-router-dom';
 
+const PAGE_SIZE = 50;
+const VAR_COLS = 'id, barcode_data, barcode_format, barcode_country, qrcode_generated, qr_code_url, variation_type, variation_value, product_id, created_at';
+
 // ── Single barcode card ───────────────────────────────────────────────────────
 function BarcodeCard({ variation }) {
   const svgRef  = useRef(null);
@@ -106,6 +109,9 @@ export default function MyBarcodesPage() {
   const [variations,  setVariations]  = useState([]);
   const [products,    setProducts]    = useState({});
   const [loading,     setLoading]     = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore,     setHasMore]     = useState(false);
+  const [offset,      setOffset]      = useState(0);
   const [err,         setErr]         = useState('');
   const [search,      setSearch]      = useState('');
   const [filterProd,  setFilterProd]  = useState('');
@@ -115,14 +121,37 @@ export default function MyBarcodesPage() {
   const load = async () => {
     if (!supabase) { setLoading(false); return; }
     const [{ data: vars, error: varErr }, { data: prods }] = await Promise.all([
-      supabase.from('variations').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('variations').select(VAR_COLS)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1),
       supabase.from('products').select('id, product_name').eq('user_id', user.id),
     ]);
     if (varErr) { setErr(varErr.message); setLoading(false); return; }
-    const prodMap = (prods ?? []).reduce((acc, p) => { acc[p.id] = p.product_name; return acc; }, {});
-    setVariations((vars ?? []).map(v => ({ ...v, product_name: prodMap[v.product_id] ?? 'Unknown' })));
-    setProducts(prodMap);
+    const pm = (prods ?? []).reduce((acc, p) => { acc[p.id] = p.product_name; return acc; }, {});
+    setProducts(pm);
+    setVariations((vars ?? []).map(v => ({ ...v, product_name: pm[v.product_id] ?? 'Unknown' })));
+    setHasMore((vars ?? []).length === PAGE_SIZE);
+    setOffset(PAGE_SIZE);
     setLoading(false);
+  };
+
+  const loadMore = async () => {
+    if (!supabase || loadingMore) return;
+    setLoadingMore(true);
+    const { data: vars, error } = await supabase
+      .from('variations').select(VAR_COLS)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) { setErr(error.message); setLoadingMore(false); return; }
+    setVariations(prev => [
+      ...prev,
+      ...(vars ?? []).map(v => ({ ...v, product_name: products[v.product_id] ?? 'Unknown' })),
+    ]);
+    setHasMore((vars ?? []).length === PAGE_SIZE);
+    setOffset(o => o + PAGE_SIZE);
+    setLoadingMore(false);
   };
 
   const filtered = variations.filter(v => {
@@ -130,7 +159,7 @@ export default function MyBarcodesPage() {
     const matchSearch = !search
       || v.barcode_data.includes(search)
       || v.product_name.toLowerCase().includes(q)
-      || v.variation_value.toLowerCase().includes(q);
+      || (v.variation_value ?? '').toLowerCase().includes(q);
     const matchProd = !filterProd || String(v.product_id) === filterProd;
     return matchSearch && matchProd;
   });
@@ -158,7 +187,9 @@ export default function MyBarcodesPage() {
             <option key={id} value={id}>{name}</option>
           ))}
         </select>
-        <span className="dp-filterbar-count">{filtered.length} barcode{filtered.length !== 1 ? 's' : ''}</span>
+        <span className="dp-filterbar-count">
+          {filtered.length} shown{hasMore || offset > PAGE_SIZE ? ` of ${offset}+ loaded` : ''}
+        </span>
       </div>
 
       {loading ? (
@@ -172,9 +203,18 @@ export default function MyBarcodesPage() {
           }
         </div>
       ) : (
-        <div className="dp-barcode-grid">
-          {filtered.map(v => <BarcodeCard key={v.id} variation={v} />)}
-        </div>
+        <>
+          <div className="dp-barcode-grid">
+            {filtered.map(v => <BarcodeCard key={v.id} variation={v} />)}
+          </div>
+          {hasMore && (
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <button className="dp-btn dp-btn-ghost" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? 'Loading…' : 'Load more barcodes'}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </DashLayout>
   );

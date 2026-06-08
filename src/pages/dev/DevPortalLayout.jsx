@@ -17,13 +17,13 @@ export default function DevPortalLayout({ children, title }) {
   const handleLogout = async () => { await logout(); navigate('/login'); };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0d1117', color: '#c9d1d9', fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace" }}>
+    <div className="dev-portal-shell" style={{ display: 'flex', minHeight: '100dvh', background: '#0d1117', color: '#c9d1d9', fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace" }}>
 
-      {/* Sidebar */}
-      <aside style={{ width: 220, background: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      {/* Sidebar — collapses to top nav bar on mobile */}
+      <aside className="dev-portal-sidebar" style={{ width: 220, background: '#161b22', borderRight: '1px solid #30363d', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
 
         {/* Logo */}
-        <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid #30363d' }}>
+        <div className="dev-portal-brand" style={{ padding: '1.25rem 1rem', borderBottom: '1px solid #30363d' }}>
           <Link to="/dev" style={{ textDecoration: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -34,12 +34,12 @@ export default function DevPortalLayout({ children, title }) {
               </svg>
               <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f0f6fc' }}>ScanCodeZW</span>
             </div>
-            <div style={{ fontSize: '0.68rem', color: '#58a6ff', marginTop: '0.2rem', letterSpacing: '0.05em' }}>DEVELOPER PORTAL</div>
+            <div className="dev-portal-brand-sub" style={{ fontSize: '0.68rem', color: '#58a6ff', marginTop: '0.2rem', letterSpacing: '0.05em' }}>DEVELOPER PORTAL</div>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '0.75rem 0' }}>
+        <nav className="dev-portal-nav" style={{ flex: 1, padding: '0.75rem 0', display: 'flex', flexDirection: 'column' }}>
           {NAV.map(({ to, label, icon }) => {
             const active = to === '/dev'
               ? location.pathname === '/dev'
@@ -48,6 +48,7 @@ export default function DevPortalLayout({ children, title }) {
               <Link
                 key={to}
                 to={to}
+                data-active={String(active)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.6rem',
                   padding: '0.55rem 1rem', fontSize: '0.8rem', textDecoration: 'none',
@@ -67,7 +68,7 @@ export default function DevPortalLayout({ children, title }) {
         </nav>
 
         {/* Bottom — back to main app + user */}
-        <div style={{ borderTop: '1px solid #30363d', padding: '0.75rem' }}>
+        <div className="dev-portal-footer" style={{ borderTop: '1px solid #30363d', padding: '0.75rem' }}>
           <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#8b949e', textDecoration: 'none', padding: '0.4rem', borderRadius: 4 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             Main Platform
@@ -86,7 +87,7 @@ export default function DevPortalLayout({ children, title }) {
       </aside>
 
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', minWidth: 0 }}>
         {title && (
           <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #30363d', background: '#161b22' }}>
             <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#f0f6fc' }}>{title}</h1>

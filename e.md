@@ -14,6 +14,9 @@ Supabase auto-refreshes the JWT every ~50 minutes. `onAuthStateChange` fires on 
 **`AdminPage.jsx:UsersTab` — `select('*')` on profiles**
 Fetches all columns including the potentially large `enterprise_config` JSON blob. Should use an explicit column list: `select('id, username, user_type, subscription_type, subscription_end_date, created_at')`.
 
+**`Dashboard.jsx` admin mode — fetches ALL profiles for MRR**
+`supabase.from('profiles').select('subscription_type, subscription_end_date, created_at')` has no `.limit()`. Acceptable at current user count but grows O(n). Replace with a Supabase RPC that returns pre-aggregated MRR and counts when user count exceeds ~1000.
+
 **`AdminPage.jsx:RevenueTab` — full client-side fetch with hard limit**
 Fetches the last 200 payment rows and sums them in the browser. As transaction volume grows, replace with a Supabase RPC that returns pre-aggregated totals so only summary numbers cross the wire.
 

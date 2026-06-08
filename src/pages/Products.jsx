@@ -12,8 +12,8 @@ function VariationsModal({ productId, userId, onClose }) {
     if (!supabase) { setData({ success: false }); setLoading(false); return; }
     (async () => {
       const [{ data: product }, { data: variations }] = await Promise.all([
-        supabase.from('products').select('*').eq('id', productId).eq('user_id', userId).single(),
-        supabase.from('variations').select('*').eq('product_id', productId).order('created_at', { ascending: true }),
+        supabase.from('products').select('id, product_name').eq('id', productId).eq('user_id', userId).single(),
+        supabase.from('variations').select('id, variation_type, variation_value, barcode_data, barcode_format, created_at').eq('product_id', productId).order('created_at', { ascending: true }),
       ]);
       if (!product) setData({ success: false });
       else setData({ success: true, product, variations: variations ?? [] });
@@ -87,7 +87,7 @@ export default function Products() {
   const loadData = async () => {
     if (!supabase) { setLoading(false); return; }
     const [{ data: prods }, { data: vars }, { data: plan }] = await Promise.all([
-      supabase.from('products').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('products').select('id, product_name, category, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
       supabase.from('variations').select('product_id').eq('user_id', user.id),
       supabase.from('subscription_plans').select('*').eq('id', user.subscription_type).single(),
     ]);
