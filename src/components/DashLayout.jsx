@@ -144,13 +144,14 @@ function buildNav(user) {
   // ── Super Admin ────────────────────────────────────────────────────────────
   if (user?.isSuperAdmin) {
     return [
-      { to: '/dashboard',          key: 'home',      Icon: Ic.home,      label: 'Overview'   },
-      { to: '/products',           key: 'products',  Icon: Ic.products,  label: 'Products'   },
-      { to: '/admin',              key: 'customers', Icon: Ic.customers, label: 'Customers'  },
-      { to: '/admin?tab=analytics',key: 'analytics', Icon: Ic.analytics, label: 'Analytics'  },
-      { to: '/admin?tab=revenue',  key: 'sales',     Icon: Ic.sales,     label: 'Sales'      },
-      { to: '/admin?tab=finance',  key: 'finance',   Icon: Ic.finance,   label: 'Finance'    },
-      { to: '/settings',           key: 'settings',  Icon: Ic.settings,  label: 'Settings'   },
+      { to: '/dashboard',            key: 'home',      Icon: Ic.home,      label: 'Overview'   },
+      { to: '/admin',                key: 'customers', Icon: Ic.customers, label: 'Users'      },
+      { to: '/admin?tab=staff',      key: 'staff',     Icon: Ic.team,      label: 'Staff'      },
+      { to: '/admin?tab=analytics',  key: 'analytics', Icon: Ic.analytics, label: 'Analytics'  },
+      { to: '/admin?tab=revenue',    key: 'sales',     Icon: Ic.sales,     label: 'Revenue'    },
+      { to: '/admin?tab=support',    key: 'support',   Icon: Ic.support,   label: 'Support'    },
+      { to: '/admin?tab=api-keys',   key: 'api',       Icon: Ic.key,       label: 'API Keys'   },
+      { to: '/admin?tab=plans',      key: 'settings',  Icon: Ic.settings,  label: 'Platform'   },
     ];
   }
 
