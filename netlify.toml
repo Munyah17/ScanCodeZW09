@@ -18,15 +18,7 @@
   port         = 3042   # ScanCodeZW API server — dedicated, do not reuse
   autoLaunch   = false
 
-# Route /api/* to Netlify Functions — must come before the SPA fallback
-# Maps /api/stripe/create-checkout-session → /.netlify/functions/stripe/create-checkout-session, etc.
-[[redirects]]
-  from   = "/api/*"
-  to     = "/.netlify/functions/:splat"
-  status = 200
-  force  = true
-
-# SPA fallback — must be last; Netlify evaluates functions before redirects
+# SPA fallback — Netlify Functions v2 (config.path) handle /api/* directly; no redirect needed
 [[redirects]]
   from   = "/*"
   to     = "/index.html"

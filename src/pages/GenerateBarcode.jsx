@@ -3,7 +3,6 @@ import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import {
   COUNTRY_STANDARDS,
   COUNTRY_INFO,
@@ -62,28 +61,16 @@ export default function GenerateBarcode() {
   }, [generated]);
 
   const loadData = async () => {
-    if (!supabase) { setLoading(false); return; }
     try {
-      const [{ data: prods }, { data: vars }, { data: plan }] = await Promise.all([
-        supabase.from('products').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('variations').select('product_id').eq('user_id', user.id),
-        supabase.from('subscription_plans').select('*').eq('id', user.subscription_type).maybeSingle(),
-      ]);
-
-      const countByProduct = (vars ?? []).reduce((acc, v) => {
-        acc[v.product_id] = (acc[v.product_id] || 0) + 1;
-        return acc;
-      }, {});
-
-      const enriched = (prods ?? []).map(p => ({
-        ...p,
-        variation_count: countByProduct[p.id] ?? 0,
-      }));
-
+      const res  = await fetch('/api/products/catalog', {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      const enriched = data.products ?? [];
       setProducts(enriched);
-      setSubscription(plan ?? PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter);
+      setSubscription(data.subscription ?? PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter);
       setProductCount(enriched.length);
-      setBarcodeCount((vars ?? []).length);
+      setBarcodeCount(data.barcode_count ?? 0);
     } finally {
       setLoading(false);
     }
@@ -196,66 +183,32 @@ export default function GenerateBarcode() {
     if (!form.variation_type || !form.variation_value.trim()) {
       setError('Please fill in the variation type and value.'); return;
     }
-    if (!supabase) { setError('Database not configured.'); return; }
-
     setSubmitting(true);
     try {
-      const fallback    = PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter;
-      const rawMaxP     = user?.enterprise_config?.max_products   ?? subscription?.max_products   ?? fallback.max_products;
-      const rawMaxV     = user?.enterprise_config?.max_variations ?? subscription?.max_variations_per_product ?? fallback.max_variations_per_product;
-      const maxProducts   = isAdmin || rawMaxP === null ? Infinity : rawMaxP;
-      const maxVariations = isAdmin || rawMaxV === null ? Infinity : rawMaxV;
-
-      let productId         = form.existing_product_id ? parseInt(form.existing_product_id, 10) : null;
-      let actualProductName = '';
-
-      if (!productId) {
-        if (productCount >= maxProducts) {
-          setError(`You have reached your ${maxProducts}-product limit. Please upgrade your plan.`); return;
-        }
-        const { data: newProduct, error: productErr } = await supabase
-          .from('products')
-          .insert({ user_id: user.id, product_name: form.product_name.trim(), category: form.category.trim() || null })
-          .select()
-          .single();
-        if (productErr) { setError('Failed to create product: ' + productErr.message); return; }
-        productId         = newProduct.id;
-        actualProductName = newProduct.product_name;
-      } else {
-        actualProductName = products.find(p => p.id === productId)?.product_name ?? '';
-      }
-
-      const { count: variationCount } = await supabase
-        .from('variations')
-        .select('*', { count: 'exact', head: true })
-        .eq('product_id', productId);
-
-      if ((variationCount ?? 0) >= maxVariations) {
-        setError(`This product has reached its ${maxVariations}-variation limit. Please upgrade your plan.`); return;
-      }
-
       const countryStd  = COUNTRY_STANDARDS[form.barcode_country] ?? COUNTRY_STANDARDS.ZW;
       const barcodeData = generateEAN13(form.barcode_country);
 
-      const { data: newVariation, error: varErr } = await supabase
-        .from('variations')
-        .insert({
-          product_id:       productId,
-          user_id:          user.id,
-          variation_type:   form.variation_type,
-          variation_value:  form.variation_value.trim(),
-          barcode_data:     barcodeData,
-          barcode_format:   countryStd.standard_format,
-          barcode_country:  form.barcode_country,
-          qrcode_generated: form.generate_qrcode,
-        })
-        .select()
-        .single();
+      const res  = await fetch('/api/barcodes/save', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+        body:    JSON.stringify({
+          existing_product_id: form.existing_product_id || null,
+          product_name:        form.product_name.trim(),
+          category:            form.category.trim() || null,
+          variation_type:      form.variation_type,
+          variation_value:     form.variation_value.trim(),
+          barcode_data:        barcodeData,
+          barcode_format:      countryStd.standard_format,
+          barcode_country:     form.barcode_country,
+          generate_qrcode:     form.generate_qrcode,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? 'Failed to save barcode.'); return; }
 
-      if (varErr) { setError('Failed to save barcode: ' + varErr.message); return; }
-
-      setGenerated({ ...newVariation, product_name: actualProductName });
-      setSuccess(`Barcode generated for ${actualProductName} — ${form.variation_value}`);
+      const { variation } = data;
+      setGenerated(variation);
+      setSuccess(`Barcode generated for ${variation.product_name} — ${form.variation_value}`);
       await loadData();
     } finally {
       setSubmitting(false);

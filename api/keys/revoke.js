@@ -22,7 +22,7 @@ export default async (req) => {
   if (!isOwner && !isAdmin) return j({ error: 'You do not have permission to revoke this key.' }, 403);
 
   const { error: dbErr } = await supabaseAdmin.from('api_keys').update({ active: false }).eq('id', keyId);
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
   return j({ success: true });
 };
 

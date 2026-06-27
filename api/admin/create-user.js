@@ -1,6 +1,7 @@
-import { requireAdmin }  from '../_utils/require-admin.js';
-import { supabaseAdmin } from '../_utils/supabase-admin.js';
-import { j }             from '../_utils/response.js';
+import { requireAdmin }                                          from '../_utils/require-admin.js';
+import { supabaseAdmin }                                         from '../_utils/supabase-admin.js';
+import { j }                                                    from '../_utils/response.js';
+import { isValidEmail, isUsername, isStrongPassword, firstError } from '../_utils/validate.js';
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -20,8 +21,12 @@ export default async (req) => {
     admin_notes       = null,
   } = body;
 
-  if (!username || !email || !password) return j({ error: 'username, email, and password are required.' }, 400);
-  if (password.length < 6)             return j({ error: 'Password must be at least 6 characters.' }, 400);
+  const valErr = firstError([
+    { check: isValidEmail(email),          msg: 'A valid email address is required.' },
+    { check: isUsername(username),         msg: 'Username must be 2–50 alphanumeric characters.' },
+    { check: isStrongPassword(password),   msg: 'Password must be at least 8 characters.' },
+  ]);
+  if (valErr) return j({ error: valErr }, 400);
 
   try {
     const { data: { user }, error: authErr } = await supabaseAdmin.auth.admin.createUser({
@@ -31,7 +36,10 @@ export default async (req) => {
       user_metadata: { username },
     });
 
-    if (authErr) return j({ error: authErr.message }, 400);
+    if (authErr) {
+      console.error('[Admin create-user] auth error:', authErr.message);
+      return j({ error: 'Could not create account. Email may already be in use.' }, 400);
+    }
 
     const profileUpdate = {
       subscription_type,
@@ -47,7 +55,7 @@ export default async (req) => {
     return j({ success: true, userId: user.id });
   } catch (err) {
     console.error('[Admin create-user]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

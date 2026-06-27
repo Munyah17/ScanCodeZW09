@@ -1,6 +1,7 @@
-import { requireAuth }  from '../_utils/require-auth.js';
-import { supabaseAdmin } from '../_utils/supabase-admin.js';
-import { j }             from '../_utils/response.js';
+import { requireAuth }                                   from '../_utils/require-auth.js';
+import { supabaseAdmin }                                from '../_utils/supabase-admin.js';
+import { j }                                           from '../_utils/response.js';
+import { isValidEmail, isUsername, isStrongPassword, firstError } from '../_utils/validate.js';
 
 const PLAN_SUB_USER_LIMITS = {
   starter:    0,
@@ -23,10 +24,17 @@ export default async function handler(req) {
     return j({ error: 'Your plan does not support team members. Upgrade to Business or above.' }, 403);
   }
 
-  const { email, username, password, role } = await req.json();
+  let body;
+  try { body = await req.json(); } catch { body = {}; }
+  const { email, username, password, role } = body;
 
-  if (!email || !username || !password) return j({ error: 'email, username and password are required.' }, 400);
-  if (!['member', 'manager'].includes(role)) return j({ error: 'Invalid role.' }, 400);
+  const valErr = firstError([
+    { check: isValidEmail(email),              msg: 'A valid email address is required.' },
+    { check: isUsername(username),             msg: 'Username must be 2–50 alphanumeric characters.' },
+    { check: isStrongPassword(password),       msg: 'Password must be at least 8 characters.' },
+    { check: ['member','manager'].includes(role), msg: 'Invalid role.' },
+  ]);
+  if (valErr) return j({ error: valErr }, 400);
 
   // Check current team size
   const { count } = await supabaseAdmin
@@ -51,7 +59,7 @@ export default async function handler(req) {
         createErr.message?.toLowerCase().includes('already exists')) {
       return j({ error: 'An account with that email already exists.' }, 409);
     }
-    return j({ error: createErr.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 
   // Update their profile with parent_user_id and sub_role

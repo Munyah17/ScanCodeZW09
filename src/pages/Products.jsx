@@ -1,25 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 
-function VariationsModal({ productId, userId, onClose }) {
+function VariationsModal({ productId, token, onClose }) {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) { setData({ success: false }); setLoading(false); return; }
-    (async () => {
-      const [{ data: product }, { data: variations }] = await Promise.all([
-        supabase.from('products').select('id, product_name').eq('id', productId).eq('user_id', userId).single(),
-        supabase.from('variations').select('id, variation_type, variation_value, barcode_data, barcode_format, created_at').eq('product_id', productId).order('created_at', { ascending: true }),
-      ]);
-      if (!product) setData({ success: false });
-      else setData({ success: true, product, variations: variations ?? [] });
-      setLoading(false);
-    })();
-  }, [productId, userId]);
+    fetch(`/api/products/variations?product_id=${productId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json()).catch(() => null)
+      .then(res => {
+        if (!res || res.error) setData({ success: false });
+        else setData({ success: true, product: res.product, variations: res.variations ?? [] });
+        setLoading(false);
+      });
+  }, [productId]);
 
   return (
     <div className="modal open" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -85,27 +83,24 @@ export default function Products() {
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
-    if (!supabase) { setLoading(false); return; }
-    const [{ data: prods }, { data: vars }, { data: plan }] = await Promise.all([
-      supabase.from('products').select('id, product_name, category, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('variations').select('product_id').eq('user_id', user.id),
-      supabase.from('subscription_plans').select('*').eq('id', user.subscription_type).single(),
-    ]);
-
-    const countByProduct = (vars ?? []).reduce((acc, v) => {
-      acc[v.product_id] = (acc[v.product_id] || 0) + 1;
-      return acc;
-    }, {});
-
-    setProducts((prods ?? []).map(p => ({ ...p, variation_count: countByProduct[p.id] ?? 0 })));
-    setSubscription(plan);
+    const res  = await fetch('/api/products/catalog', {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    setProducts(data.products ?? []);
+    setSubscription(data.subscription ?? null);
     setLoading(false);
   };
 
   const handleDelete = async (productId, productName) => {
     if (!window.confirm(`Delete "${productName}" and all its variations? This cannot be undone.`)) return;
-    const { error } = await supabase.from('products').delete().eq('id', productId).eq('user_id', user.id);
-    if (error) { setErr(error.message || 'Failed to delete.'); return; }
+    const res  = await fetch('/api/v1/products/delete', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+      body:    JSON.stringify({ productId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to delete.'); return; }
     setMsg('Product deleted.');
     loadData();
   };
@@ -184,7 +179,7 @@ export default function Products() {
       </div>
 
       {modalProduct && (
-        <VariationsModal productId={modalProduct} userId={user.id} onClose={() => setModalProduct(null)} />
+        <VariationsModal productId={modalProduct} token={user.accessToken} onClose={() => setModalProduct(null)} />
       )}
     </DashLayout>
   );

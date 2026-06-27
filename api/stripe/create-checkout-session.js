@@ -9,8 +9,9 @@
  */
 
 import Stripe from 'stripe';
-import { requireAuth } from '../_utils/require-auth.js';
-import { j }          from '../_utils/response.js';
+import { requireAuth }   from '../_utils/require-auth.js';
+import { j }             from '../_utils/response.js';
+import { supabaseAdmin } from '../_utils/supabase-admin.js';
 
 const PLAN_AMOUNTS_CENTS = { starter: 479, business: 1199, pro: 2499, lifetime: 12999 };
 const PLAN_NAMES = {
@@ -86,11 +87,24 @@ export default async (req) => {
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
+
+    // Create a pending record so PaymentReturn can find it while waiting for the webhook
+    await supabaseAdmin.from('payments').upsert({
+      reference,
+      user_id:    userId,
+      plan,
+      amount_usd: PLAN_AMOUNTS_CENTS[plan] / 100,
+      method:     'stripe',
+      stripe_pi:  session.id,
+      status:     'pending',
+    }, { onConflict: 'reference' })
+      .catch(err => console.warn('[Stripe] pending insert warning:', err.message));
+
     return j({ url: session.url });
 
   } catch (err) {
     console.error('[Stripe] create-checkout-session error:', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

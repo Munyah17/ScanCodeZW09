@@ -4,7 +4,6 @@ import {
   ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -146,46 +145,52 @@ export default function Dashboard() {
   const isAdmin = user?.isAdmin;
 
   const load = useCallback(async () => {
-    if (!supabase || !user) { setLoading(false); return; }
+    if (!user) { setLoading(false); return; }
     setLoading(true);
 
-    const start = getStartDate(filter === 'All Time' ? 'all' : filter.toLowerCase().replace(' ', ''));
+    const filterParam = filter === 'All Time' ? 'all' : filter.toLowerCase().replace(' ', '');
+    const headers     = { Authorization: `Bearer ${user.accessToken}` };
+    const start       = getStartDate(filterParam);
 
     if (isAdmin) {
-      const [{ data: payments }, { data: profiles }] = await Promise.all([
-        supabase.from('payments').select('amount_usd, created_at').eq('status', 'paid').gte('created_at', start.toISOString()),
-        supabase.from('profiles').select('subscription_type, subscription_end_date, created_at'),
+      const [revData, usersData] = await Promise.all([
+        fetch('/api/admin/revenue', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/admin/users',   { headers }).then(r => r.json()).catch(() => []),
       ]);
 
-      const totalRevenue = (payments ?? []).reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
-      const activeSubs   = (profiles ?? []).filter(p =>
+      const allTx   = (revData.transactions ?? []);
+      const payments = allTx.filter(t => t.status === 'paid' && new Date(t.created_at) >= start);
+      const profiles  = Array.isArray(usersData) ? usersData : [];
+
+      const totalRevenue = payments.reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
+      const activeSubs   = profiles.filter(p =>
         p.subscription_type && p.subscription_type !== 'starter' &&
         (!p.subscription_end_date || new Date(p.subscription_end_date) > new Date())
       );
       const mrr = activeSubs.reduce((s, p) => s + (PLAN_PRICES[p.subscription_type] ?? 0), 0);
 
-      const revenueChart = bucketByWeek(payments ?? [], 'created_at', 'amount_usd');
+      const revenueChart = bucketByWeek(payments, 'created_at', 'amount_usd');
       const mrrChart     = revenueChart.map(r => ({ ...r, value: r.value > 0 ? r.value * 0.48 : 0 }));
       const subsChart    = bucketByWeek(activeSubs, 'created_at');
 
       setMetrics({
-        primary:   { label: 'Revenue',                   value: fmtMoney(totalRevenue),        chart: revenueChart, isCount: false },
-        secondary: { label: 'Monthly Recurring Revenue', value: fmtMoney(mrr),                 chart: mrrChart,     isCount: false },
-        tertiary:  { label: 'Active Subscriptions',      value: String(activeSubs.length),      chart: subsChart,    isCount: true  },
+        primary:   { label: 'Revenue',                   value: fmtMoney(totalRevenue),   chart: revenueChart, isCount: false },
+        secondary: { label: 'Monthly Recurring Revenue', value: fmtMoney(mrr),            chart: mrrChart,     isCount: false },
+        tertiary:  { label: 'Active Subscriptions',      value: String(activeSubs.length), chart: subsChart,    isCount: true  },
       });
     } else {
-      const [{ data: products }, { data: barcodes }] = await Promise.all([
-        supabase.from('products').select('created_at').eq('user_id', user.id).gte('created_at', start.toISOString()),
-        supabase.from('variations').select('created_at').eq('user_id', user.id).gte('created_at', start.toISOString()),
-      ]);
+      const data = await fetch(`/api/dashboard/stats?filter=${filterParam}`, { headers })
+        .then(r => r.json()).catch(() => ({}));
 
+      const products = data.products ?? [];
+      const barcodes = data.barcodes ?? [];
       const planLabel = (user.subscription_type ?? 'starter');
       const planName  = planLabel.charAt(0).toUpperCase() + planLabel.slice(1);
 
       setMetrics({
-        primary:   { label: 'Barcodes Generated',  value: String(barcodes?.length ?? 0),  chart: bucketByWeek(barcodes ?? [], 'created_at'),  isCount: true },
-        secondary: { label: 'Products in Catalog', value: String(products?.length ?? 0),  chart: bucketByWeek(products ?? [], 'created_at'),  isCount: true },
-        tertiary:  { label: 'Current Plan',         value: planName,                        chart: bucketByWeek(barcodes ?? [], 'created_at'),  isCount: true },
+        primary:   { label: 'Barcodes Generated',  value: String(barcodes.length),  chart: bucketByWeek(barcodes, 'created_at'),  isCount: true },
+        secondary: { label: 'Products in Catalog', value: String(products.length),  chart: bucketByWeek(products, 'created_at'),  isCount: true },
+        tertiary:  { label: 'Current Plan',         value: planName,                 chart: bucketByWeek(barcodes, 'created_at'),  isCount: true },
       });
     }
 

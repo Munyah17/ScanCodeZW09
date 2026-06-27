@@ -15,7 +15,7 @@ export default async (req) => {
     .eq('user_id', auth.userId)
     .order('created_at', { ascending: false });
 
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
   return j(data);
 };
 

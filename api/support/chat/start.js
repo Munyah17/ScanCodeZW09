@@ -1,5 +1,6 @@
-import { supabaseAdmin } from '../../_utils/supabase-admin.js';
-import { j }             from '../../_utils/response.js';
+import { supabaseAdmin }                            from '../../_utils/supabase-admin.js';
+import { j }                                       from '../../_utils/response.js';
+import { isValidEmail, isValidLength, firstError } from '../../_utils/validate.js';
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -8,7 +9,12 @@ export default async (req) => {
   let body;
   try { body = await req.json(); } catch { body = {}; }
   const { guestName, guestEmail, userId } = body;
-  if (!guestEmail) return j({ error: 'guestEmail is required.' }, 400);
+
+  const err = firstError([
+    { check: isValidEmail(guestEmail),                               msg: 'A valid email address is required.' },
+    { check: !guestName || isValidLength(guestName, 1, 100),         msg: 'Name must be 1–100 characters.' },
+  ]);
+  if (err) return j({ error: err }, 400);
 
   try {
     const { data, error } = await supabaseAdmin
@@ -28,7 +34,7 @@ export default async (req) => {
     return j({ sessionId: data.id, queuePosition: (queuePosition ?? 0) + 1 });
   } catch (err) {
     console.error('[chat/start]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

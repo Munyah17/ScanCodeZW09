@@ -4,7 +4,6 @@ import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import { formatEAN13Display, COUNTRY_STANDARDS } from '../utils/barcodeUtils';
 import DashLayout from '../components/DashLayout';
 import { Link } from 'react-router-dom';
@@ -119,37 +118,28 @@ export default function MyBarcodesPage() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    if (!supabase) { setLoading(false); return; }
-    const [{ data: vars, error: varErr }, { data: prods }] = await Promise.all([
-      supabase.from('variations').select(VAR_COLS)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1),
-      supabase.from('products').select('id, product_name').eq('user_id', user.id),
-    ]);
-    if (varErr) { setErr(varErr.message); setLoading(false); return; }
-    const pm = (prods ?? []).reduce((acc, p) => { acc[p.id] = p.product_name; return acc; }, {});
-    setProducts(pm);
-    setVariations((vars ?? []).map(v => ({ ...v, product_name: pm[v.product_id] ?? 'Unknown' })));
-    setHasMore((vars ?? []).length === PAGE_SIZE);
+    const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=0`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr('Failed to load barcodes.'); setLoading(false); return; }
+    setProducts(data.products ?? {});
+    setVariations(data.barcodes ?? []);
+    setHasMore(data.has_more ?? false);
     setOffset(PAGE_SIZE);
     setLoading(false);
   };
 
   const loadMore = async () => {
-    if (!supabase || loadingMore) return;
+    if (loadingMore) return;
     setLoadingMore(true);
-    const { data: vars, error } = await supabase
-      .from('variations').select(VAR_COLS)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (error) { setErr(error.message); setLoadingMore(false); return; }
-    setVariations(prev => [
-      ...prev,
-      ...(vars ?? []).map(v => ({ ...v, product_name: products[v.product_id] ?? 'Unknown' })),
-    ]);
-    setHasMore((vars ?? []).length === PAGE_SIZE);
+    const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=${offset}`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr('Failed to load more barcodes.'); setLoadingMore(false); return; }
+    setVariations(prev => [...prev, ...(data.barcodes ?? [])]);
+    setHasMore(data.has_more ?? false);
     setOffset(o => o + PAGE_SIZE);
     setLoadingMore(false);
   };

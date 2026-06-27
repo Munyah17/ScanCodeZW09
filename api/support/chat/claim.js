@@ -28,7 +28,7 @@ export default async (req) => {
     .update({ status: 'active', agent_id: admin.id, assigned_at: new Date().toISOString() })
     .eq('id', sessionId);
 
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
 
   await supabaseAdmin.from('chat_messages').insert({
     session_id:  sessionId,

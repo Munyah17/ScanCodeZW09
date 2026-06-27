@@ -54,9 +54,7 @@ async function activateFromReference(reference, status, amount, paynowRef) {
   const isLifetime = payment.plan === 'lifetime';
   const update = { subscription_type: payment.plan };
   if (!isLifetime) {
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 1);
-    update.subscription_end_date = endDate.toISOString();
+    update.subscription_end_date = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   } else {
     update.subscription_end_date = null;
   }

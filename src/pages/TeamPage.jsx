@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout, { PLAN_LIMITS } from '../components/DashLayout';
 
 const ROLE_OPTIONS = [
@@ -103,19 +102,22 @@ export default function TeamPage() {
   useEffect(() => { loadMembers(); }, []);
 
   const loadMembers = async () => {
-    if (!supabase) { setLoading(false); return; }
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, username, email:id, created_at, sub_role')
-      .eq('parent_user_id', user.id)
-      .order('created_at', { ascending: false });
-    setMembers(data ?? []);
+    const res = await fetch('/api/team/members', {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    setMembers(data.members ?? []);
     setLoading(false);
   };
 
   const removeAccess = async (memberId) => {
     if (!confirm('Remove this team member? They will lose access to your organisation.')) return;
-    await supabase.from('profiles').update({ parent_user_id: null }).eq('id', memberId);
+    const res = await fetch('/api/team/remove', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+      body:    JSON.stringify({ memberId }),
+    });
+    if (!res.ok) { setMsg('Failed to remove member. Please try again.'); return; }
     setMembers(prev => prev.filter(m => m.id !== memberId));
     setMsg('Member removed.');
   };

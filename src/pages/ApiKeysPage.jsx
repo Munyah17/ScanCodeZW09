@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 
 const SCOPES = ['read:barcodes', 'write:barcodes', 'read:products', 'write:products', 'read:subscription'];
@@ -114,15 +113,21 @@ export default function ApiKeysPage() {
   useEffect(() => { loadKeys(); }, []);
 
   const loadKeys = async () => {
-    if (!supabase) { setLoading(false); return; }
-    const { data } = await supabase.from('api_keys').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-    setApiKeys(data ?? []);
+    const res  = await fetch(`${API_BASE}/api/keys/list`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const data = await res.json().catch(() => []);
+    setApiKeys(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
   const revokeKey = async (id) => {
-    if (!supabase) return;
-    await supabase.from('api_keys').update({ active: false }).eq('id', id);
+    const res = await fetch(`${API_BASE}/api/keys/revoke`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+      body:    JSON.stringify({ keyId: id }),
+    });
+    if (!res.ok) { setMsg('Failed to revoke key.'); return; }
     setApiKeys(prev => prev.map(k => k.id === id ? { ...k, active: false } : k));
     setMsg('Key revoked.');
   };

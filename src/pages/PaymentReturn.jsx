@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const MAX_POLL_ATTEMPTS = 25;  // 25 × 2s = 50 seconds
-const POLL_INTERVAL_MS  = 2000;
-const INITIAL_DELAY_MS  = 1500; // give webhook time to fire before first check
+const MAX_POLL_ATTEMPTS = 20;   // 20 × 3s = 60 seconds
+const POLL_INTERVAL_MS  = 3000;
+const INITIAL_DELAY_MS  = 2000; // give the webhook/callback time to land first
 const REDIRECT_DELAY_MS = 2000;
 
 export default function PaymentReturn() {
@@ -22,7 +21,6 @@ export default function PaymentReturn() {
 
   useEffect(() => {
     if (!reference) { setStatus('unknown'); return; }
-    // Give the webhook a moment to land before the first DB read
     const t = setTimeout(() => checkPayment(0), INITIAL_DELAY_MS);
     return () => clearTimeout(t);
   }, [reference]);
@@ -38,19 +36,23 @@ export default function PaymentReturn() {
 
   async function checkPayment(n) {
     try {
-      const { data, error } = supabase
-        ? await supabase
-            .from('payments')
-            .select('status, plan')
-            .eq('reference', reference)
-            .single()
-        : { data: null, error: null };
+      const res = await fetch(
+        `/api/payments/status?reference=${encodeURIComponent(reference)}`
+      );
 
-      if (error && error.code !== 'PGRST116') {
-        console.warn('[PaymentReturn]', error.message);
+      if (res.status === 404) {
+        // Webhook hasn't fired yet — keep polling
+        if (n < MAX_POLL_ATTEMPTS) {
+          setAttempt(n + 1);
+          setTimeout(() => checkPayment(n + 1), POLL_INTERVAL_MS);
+        } else {
+          setStatus('pending');
+        }
+        return;
       }
 
-      // Always capture the plan so retry links work
+      const data = await res.json().catch(() => ({}));
+
       if (data?.plan) setPlan(data.plan);
 
       if (data?.status === 'paid') {
@@ -63,15 +65,14 @@ export default function PaymentReturn() {
         return;
       }
 
+      // Still 'pending' in DB — keep polling
       if (n < MAX_POLL_ATTEMPTS) {
         setAttempt(n + 1);
         setTimeout(() => checkPayment(n + 1), POLL_INTERVAL_MS);
       } else {
-        // Timed out — likely still processing (Paynow can be slow on mobile money)
         setStatus('pending');
       }
-    } catch (err) {
-      console.error('[PaymentReturn] fetch error:', err);
+    } catch {
       if (n < MAX_POLL_ATTEMPTS) {
         setTimeout(() => checkPayment(n + 1), POLL_INTERVAL_MS);
       } else {
@@ -80,7 +81,6 @@ export default function PaymentReturn() {
     }
   }
 
-  // Build the checkout retry URL — falls back to /pricing if plan is unknown
   const retryUrl = plan ? `/checkout?plan=${plan}` : '/pricing';
 
   return (
@@ -91,7 +91,7 @@ export default function PaymentReturn() {
           {status === 'checking' && (
             <>
               <div style={{ fontSize: '3rem', marginBottom: '1rem', color: '#4f46e5' }}>
-                <i className="fas fa-spinner fa-spin"></i>
+                <i className="fas fa-spinner fa-spin" />
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Confirming your payment…</h2>
               <p style={{ color: '#6b7280' }}>
@@ -104,14 +104,14 @@ export default function PaymentReturn() {
           {status === 'paid' && (
             <>
               <div style={{ fontSize: '4rem', marginBottom: '1rem', color: '#10b981' }}>
-                <i className="fas fa-check-circle"></i>
+                <i className="fas fa-check-circle" />
               </div>
               <h2 style={{ marginBottom: '0.5rem', color: '#10b981' }}>Payment Confirmed!</h2>
               <p style={{ color: '#374151', marginBottom: '1rem' }}>
                 Your subscription is now active. Taking you to your dashboard…
               </p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: '#6b7280', fontSize: '0.9rem' }}>
-                <i className="fas fa-spinner fa-spin"></i>
+                <i className="fas fa-spinner fa-spin" />
                 <span>Redirecting…</span>
               </div>
             </>
@@ -120,7 +120,7 @@ export default function PaymentReturn() {
           {status === 'pending' && (
             <>
               <div style={{ fontSize: '3.5rem', marginBottom: '1rem', color: '#f59e0b' }}>
-                <i className="fas fa-clock"></i>
+                <i className="fas fa-clock" />
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Payment received — activating…</h2>
               <p style={{ color: '#374151', marginBottom: '1rem' }}>
@@ -143,23 +143,17 @@ export default function PaymentReturn() {
           {status === 'failed' && (
             <>
               <div style={{ fontSize: '3.5rem', marginBottom: '1rem', color: '#ef4444' }}>
-                <i className="fas fa-times-circle"></i>
+                <i className="fas fa-times-circle" />
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>Payment not completed</h2>
               <p style={{ color: '#374151', marginBottom: '2rem' }}>
                 Your payment could not be processed. No charge was made to your account.
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => navigate(retryUrl)}
-                >
+                <button className="btn btn-primary" onClick={() => navigate(retryUrl)}>
                   Try Again
                 </button>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => navigate(retryUrl)}
-                >
+                <button className="btn btn-outline" onClick={() => navigate(retryUrl)}>
                   Use a different payment method
                 </button>
               </div>
@@ -172,7 +166,7 @@ export default function PaymentReturn() {
           {status === 'unknown' && (
             <>
               <div style={{ fontSize: '3.5rem', marginBottom: '1rem', color: '#9ca3af' }}>
-                <i className="fas fa-question-circle"></i>
+                <i className="fas fa-question-circle" />
               </div>
               <h2 style={{ marginBottom: '0.5rem' }}>No payment reference found</h2>
               <p style={{ color: '#6b7280', marginBottom: '2rem' }}>

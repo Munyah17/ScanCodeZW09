@@ -37,7 +37,7 @@ export default async (req) => {
   if (product_id) query = query.eq('product_id', product_id);
 
   const { data, count, error: dbErr } = await query;
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
 
   await logUsage({ userId: auth.userId, keyId: auth.keyId, environment: auth.environment,
     endpoint: '/api/v1/barcodes/list', operation: 'barcode_list',

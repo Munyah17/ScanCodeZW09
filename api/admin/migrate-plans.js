@@ -26,7 +26,7 @@ export default async (req) => {
     return j({ success: true, total_migrated: totalMigrated, results });
   } catch (err) {
     console.error('[migrate-plans]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

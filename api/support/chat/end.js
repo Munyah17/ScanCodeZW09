@@ -17,7 +17,7 @@ export default async (req) => {
     .update({ status, ended_at: new Date().toISOString() })
     .eq('id', sessionId);
 
-  if (error) return j({ error: error.message }, 500);
+  if (error) return j({ error: 'Internal server error.' }, 500);
   return j({ success: true });
 };
 

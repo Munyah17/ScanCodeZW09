@@ -1,5 +1,6 @@
-import { supabaseAdmin } from '../../_utils/supabase-admin.js';
-import { j }             from '../../_utils/response.js';
+import { supabaseAdmin }                                        from '../../_utils/supabase-admin.js';
+import { j }                                                   from '../../_utils/response.js';
+import { isValidUuid, isValidLength, firstError }              from '../../_utils/validate.js';
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -8,9 +9,13 @@ export default async (req) => {
   let body;
   try { body = await req.json(); } catch { body = {}; }
   const { sessionId, senderName, body: msgBody, isAgent = false, senderId } = body;
-  if (!sessionId || !msgBody || !senderName) {
-    return j({ error: 'sessionId, senderName, and body are required.' }, 400);
-  }
+
+  const err = firstError([
+    { check: isValidUuid(sessionId),                  msg: 'Invalid sessionId.' },
+    { check: isValidLength(senderName, 1, 100),       msg: 'senderName must be 1–100 characters.' },
+    { check: isValidLength(msgBody, 1, 2000),         msg: 'Message must be 1–2000 characters.' },
+  ]);
+  if (err) return j({ error: err }, 400);
 
   try {
     const { data: session } = await supabaseAdmin
@@ -34,7 +39,7 @@ export default async (req) => {
     return j({ messageId: data.id, created_at: data.created_at });
   } catch (err) {
     console.error('[chat/message]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

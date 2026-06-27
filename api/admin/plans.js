@@ -14,7 +14,7 @@ export default async (req) => {
       .select('*')
       .order('price_usd', { ascending: true, nullsLast: true });
 
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j(data);
   }
 
@@ -34,7 +34,7 @@ export default async (req) => {
     if (active                     !== undefined) update.active                     = active;
 
     const { error: dbErr } = await supabaseAdmin.from('subscription_plans').update(update).eq('id', id);
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 

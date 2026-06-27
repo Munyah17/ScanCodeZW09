@@ -60,7 +60,7 @@ export default async (req) => {
     });
   } catch (err) {
     console.error('[Admin revenue]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 
 const REGULAR_PLANS = [
@@ -33,9 +32,15 @@ export default function SettingsPage() {
     if (isSuperAdmin) { setErr('The Super Admin account cannot be deleted.'); return; }
     if (deleteConfirm !== user?.username) { setErr('Username does not match.'); return; }
     setDeleting(true);
-    if (supabase) {
-      await supabase.from('variations').delete().eq('user_id', user.id);
-      await supabase.from('products').delete().eq('user_id', user.id);
+    const res = await fetch('/api/settings/clear-data', {
+      method:  'DELETE',
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setErr(data.error || 'Failed to delete account data. Please try again.');
+      setDeleting(false);
+      return;
     }
     await logout();
     navigate('/');

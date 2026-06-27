@@ -72,7 +72,7 @@ export default async (req) => {
       return j({ success: true, url: session.url, reference });
     } catch (err) {
       console.error('[dev/topup stripe]', err.message);
-      return j({ error: err.message }, 500);
+      return j({ error: 'Internal server error.' }, 500);
     }
   }
 

@@ -38,7 +38,7 @@ export default async (req) => {
   if (env !== 'all') query = query.eq('environment', env);
 
   const { data: logs, count, error: dbErr } = await query;
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
 
   // Aggregate stats over the period
   const { data: stats } = await supabaseAdmin

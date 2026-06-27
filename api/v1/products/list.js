@@ -29,7 +29,7 @@ export default async (req) => {
     .order('created_at', { ascending: false })
     .range(off, off + lim - 1);
 
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
 
   await logUsage({ userId: auth.userId, keyId: auth.keyId, environment: auth.environment,
     endpoint: '/api/v1/products/list', operation: 'products_list',

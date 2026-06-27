@@ -24,7 +24,7 @@ export default async (req) => {
   if (Object.keys(patch).length === 0) return j({ error: 'Nothing to update.' }, 400);
 
   const { error: e } = await supabaseAdmin.from('profiles').update(patch).eq('id', user_id);
-  if (e) return j({ error: e.message }, 500);
+  if (e) return j({ error: 'Internal server error.' }, 500);
   return j({ success: true });
 };
 

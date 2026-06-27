@@ -159,7 +159,7 @@ export default async (req) => {
 
   if (dbErr) {
     console.error('[v1/barcodes/generate]', dbErr.message);
-    return j({ success: false, error: 'DB_ERROR', message: dbErr.message }, 500);
+    return j({ success: false, error: 'DB_ERROR' }, 500);
   }
 
   const qrDataUrl = include_qr ? await QRCode.toDataURL(code, { errorCorrectionLevel: 'M' }) : null;

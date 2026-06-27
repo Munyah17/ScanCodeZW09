@@ -13,7 +13,7 @@ export default async (req) => {
     const { key_id } = await req.json().catch(() => ({}));
     if (!key_id) return j({ error: 'key_id required' }, 400);
     const { error: e } = await supabaseAdmin.from('api_keys').delete().eq('id', key_id);
-    if (e) return j({ error: e.message }, 500);
+    if (e) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 
@@ -25,11 +25,11 @@ export default async (req) => {
       .select('id, name, key_prefix, scopes, created_at, last_used_at, request_count, user_id, profiles(username, user_type)')
       .order('created_at', { ascending: false });
 
-    if (e) return j({ error: e.message }, 500);
+    if (e) return j({ error: 'Internal server error.' }, 500);
     return j({ keys: keys ?? [] });
   } catch (err) {
     console.error('[Admin api-keys]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

@@ -21,7 +21,7 @@ export default async (req) => {
   if (status === 'resolved')    update.resolved_at = new Date().toISOString();
 
   const { error: dbErr } = await supabaseAdmin.from('support_tickets').update(update).eq('id', ticketId);
-  if (dbErr) return j({ error: dbErr.message }, 500);
+  if (dbErr) return j({ error: 'Internal server error.' }, 500);
   return j({ success: true });
 };
 

@@ -121,13 +121,11 @@ export default function ChatWidget() {
   }, []);
 
   const loadMessages = async (sid) => {
-    if (!supabase) return;
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', sid)
-      .order('created_at', { ascending: true });
-    setMessages(data ?? []);
+    try {
+      const res  = await fetch(`${API_BASE}/api/support/chat/messages?sessionId=${encodeURIComponent(sid)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setMessages(data.messages ?? []);
+    } catch { /* ignore network errors on chat load */ }
   };
 
   const sendMessage = async () => {

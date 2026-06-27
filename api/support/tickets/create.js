@@ -1,5 +1,8 @@
-import { supabaseAdmin } from '../../_utils/supabase-admin.js';
-import { j }             from '../../_utils/response.js';
+import { supabaseAdmin }                              from '../../_utils/supabase-admin.js';
+import { j }                                         from '../../_utils/response.js';
+import { isValidEmail, isValidLength, firstError }   from '../../_utils/validate.js';
+
+const VALID_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -12,9 +15,13 @@ export default async (req) => {
     userId = null, source = 'widget', sessionId = null, priority = 'normal',
   } = body;
 
-  if (!guestEmail || !subject || !ticketBody) {
-    return j({ error: 'guestEmail, subject, and body are required.' }, 400);
-  }
+  const err = firstError([
+    { check: isValidEmail(guestEmail),              msg: 'A valid email address is required.' },
+    { check: isValidLength(subject, 3, 200),        msg: 'Subject must be 3–200 characters.' },
+    { check: isValidLength(ticketBody, 10, 5000),   msg: 'Message must be 10–5000 characters.' },
+    { check: VALID_PRIORITIES.includes(priority),   msg: 'Invalid priority value.' },
+  ]);
+  if (err) return j({ error: err }, 400);
 
   try {
     const { data, error } = await supabaseAdmin
@@ -35,7 +42,7 @@ export default async (req) => {
     return j({ success: true, ticketId: data.id, ticketNumber: data.ticket_number });
   } catch (err) {
     console.error('[tickets/create]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

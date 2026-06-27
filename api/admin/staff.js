@@ -17,7 +17,7 @@ export default async (req) => {
       .select('id, username, user_type, created_at, subscription_type')
       .in('user_type', STAFF_ROLES)
       .order('created_at', { ascending: false });
-    if (e) return j({ error: e.message }, 500);
+    if (e) return j({ error: 'Internal server error.' }, 500);
     return j({ staff: data ?? [] });
   }
 
@@ -31,13 +31,13 @@ export default async (req) => {
     const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email, password, email_confirm: true,
     });
-    if (createErr) return j({ error: createErr.message }, 500);
+    if (createErr) return j({ error: 'Internal server error.' }, 500);
 
     const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .update({ username, user_type: role })
       .eq('id', newUser.user.id);
-    if (profileErr) return j({ error: profileErr.message }, 500);
+    if (profileErr) return j({ error: 'Internal server error.' }, 500);
 
     return j({ success: true, id: newUser.user.id });
   }
@@ -49,7 +49,7 @@ export default async (req) => {
     if (!user_id || !role) return j({ error: 'user_id and role required' }, 400);
     if (!STAFF_ROLES.includes(role)) return j({ error: 'Invalid role' }, 400);
     const { error: e } = await supabaseAdmin.from('profiles').update({ user_type: role }).eq('id', user_id);
-    if (e) return j({ error: e.message }, 500);
+    if (e) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 
@@ -59,7 +59,7 @@ export default async (req) => {
     const { user_id } = await req.json().catch(() => ({}));
     if (!user_id) return j({ error: 'user_id required' }, 400);
     const { error: e } = await supabaseAdmin.from('profiles').update({ user_type: 'user' }).eq('id', user_id);
-    if (e) return j({ error: e.message }, 500);
+    if (e) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 

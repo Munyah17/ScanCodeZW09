@@ -40,7 +40,7 @@ export default async (req) => {
     return j({ key: rawKey, prefix: keyPrefix, name, scopes });
   } catch (err) {
     console.error('[keys/generate]', err.message);
-    return j({ error: err.message }, 500);
+    return j({ error: 'Internal server error.' }, 500);
   }
 };
 

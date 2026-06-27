@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 
 const ROLE_LABELS = { super_admin: 'Super Admin', admin: 'Admin', user: 'Client' };
@@ -18,11 +17,16 @@ export default function ProfilePage() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    if (!supabase || !user) return;
+    if (!user) return;
     setSaving(true); setMsg(''); setErr('');
-    const { error } = await supabase.from('profiles').update({ username: username.trim() }).eq('id', user.id);
+    const res  = await fetch('/api/profile/update', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+      body:    JSON.stringify({ username: username.trim() }),
+    });
+    const data = await res.json();
     setSaving(false);
-    if (error) setErr(error.message);
+    if (!res.ok) setErr(data.error || 'Failed to update profile.');
     else setMsg('Username updated successfully.');
   };
 
@@ -31,9 +35,14 @@ export default function ProfilePage() {
     if (pwForm.newPw !== pwForm.confirm) { setErr('Passwords do not match.'); return; }
     if (pwForm.newPw.length < 8) { setErr('Password must be at least 8 characters.'); return; }
     setSavingPw(true); setMsg(''); setErr('');
-    const { error } = await supabase.auth.updateUser({ password: pwForm.newPw });
+    const res  = await fetch('/api/auth/change-password', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.accessToken}` },
+      body:    JSON.stringify({ password: pwForm.newPw }),
+    });
+    const data = await res.json().catch(() => ({}));
     setSavingPw(false);
-    if (error) setErr(error.message);
+    if (!res.ok) setErr(data.error || 'Failed to change password.');
     else { setMsg('Password changed successfully.'); setPwForm({ newPw: '', confirm: '' }); }
   };
 

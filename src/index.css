@@ -1351,8 +1351,12 @@ a:hover { color: var(--accent-dark); }
   .dp-title   { font-size: 1rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dp-content { padding: 0.875rem; }
   .dp-content-page { padding: 0.875rem; }
-  .dp-overview-2col { grid-template-columns: 1fr; }
-  .dp-cards-2col    { grid-template-columns: 1fr; }
+  /* Prevent flex compression so charts don't bleed into the next card */
+  .dp-overview-card-full { flex-shrink: 0; }
+  .dp-overview-2col      { grid-template-columns: 1fr; flex-shrink: 0; }
+  .dp-cards-2col         { grid-template-columns: 1fr; }
+  /* Shrink the large value number so the card height stays contained */
+  .dp-card-value         { font-size: 1.875rem; }
   .dp-filter-btn { padding: 0.22rem 0.45rem; font-size: 0.74rem; }
   .dp-section { padding: 0.875rem; }
   .dp-topbar-actions {

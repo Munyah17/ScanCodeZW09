@@ -44,20 +44,29 @@ export default async (req) => {
       })));
     } catch (err) {
       console.error('[Admin users GET]', err.message);
-      return j({ error: err.message }, 500);
+      return j({ error: 'Internal server error.' }, 500);
     }
   }
 
   if (req.method === 'PATCH') {
     let body;
     try { body = await req.json(); } catch { body = {}; }
-    const { userId, subscription_type, subscription_end_date, enterprise_config, admin_notes } = body;
+    const { userId, subscription_type, subscription_end_date, enterprise_config, admin_notes, user_type } = body;
 
     if (!userId) return j({ error: 'userId is required.' }, 400);
 
-    const validPlans = ['starter', 'business', 'pro', 'enterprise', 'custom'];
+    if (user_type !== undefined && admin.user_type !== 'super_admin') {
+      return j({ error: 'Super admin only.' }, 403);
+    }
+
+    const validPlans = ['free', 'starter', 'business', 'pro', 'enterprise', 'lifetime', 'custom'];
     if (subscription_type && !validPlans.includes(subscription_type)) {
       return j({ error: `Invalid plan: "${subscription_type}"` }, 400);
+    }
+
+    const validRoles = ['user', 'admin', 'technical_support', 'clerk', 'assistant', 'finance', 'super_admin'];
+    if (user_type && !validRoles.includes(user_type)) {
+      return j({ error: `Invalid role: "${user_type}"` }, 400);
     }
 
     try {
@@ -66,13 +75,30 @@ export default async (req) => {
       if (subscription_end_date !== undefined) update.subscription_end_date = subscription_end_date || null;
       if (enterprise_config     !== undefined) update.enterprise_config     = enterprise_config;
       if (admin_notes           !== undefined) update.admin_notes           = admin_notes;
+      if (user_type             !== undefined) update.user_type             = user_type;
 
       const { error: dbErr } = await supabaseAdmin.from('profiles').update(update).eq('id', userId);
       if (dbErr) throw dbErr;
       return j({ success: true });
     } catch (err) {
       console.error('[Admin users PATCH]', err.message);
-      return j({ error: err.message }, 500);
+      return j({ error: 'Internal server error.' }, 500);
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    if (admin.user_type !== 'super_admin') return j({ error: 'Super admin only.' }, 403);
+    let body;
+    try { body = await req.json(); } catch { body = {}; }
+    const { userId } = body;
+    if (!userId) return j({ error: 'userId is required.' }, 400);
+    try {
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (authErr) throw authErr;
+      return j({ success: true });
+    } catch (err) {
+      console.error('[Admin users DELETE]', err.message);
+      return j({ error: 'Internal server error.' }, 500);
     }
   }
 

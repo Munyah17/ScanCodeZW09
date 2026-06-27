@@ -9,11 +9,14 @@ export function AuthProvider({ children }) {
 
   // ── Build the app user object from a Supabase session ──────────────────────
   const hydrateUser = useCallback(async (session) => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('username, subscription_type, subscription_end_date, enterprise_config, user_type')
-      .eq('id', session.user.id)
-      .single();
+    let profile = null;
+    try {
+      const res = await fetch('/api/profile/me', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) profile = body.profile;
+    } catch { /* network error — fall back to session defaults */ }
 
     const userType = profile?.user_type ?? 'user';
     const elevated = ['super_admin','admin','technical_support','clerk','assistant','finance'];

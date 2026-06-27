@@ -25,7 +25,7 @@ export default async (req) => {
       .from('external_credentials')
       .select('id, name, provider, credential_type, purpose, active, created_at')
       .order('created_at', { ascending: false });
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j(data);
   }
 
@@ -39,7 +39,7 @@ export default async (req) => {
     const { error: dbErr } = await supabaseAdmin.from('external_credentials').insert({
       name, provider, credential_type, encrypted_value: encrypt(value), purpose,
     });
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 
@@ -54,7 +54,7 @@ export default async (req) => {
     if (value   !== undefined) update.encrypted_value = encrypt(value);
 
     const { error: dbErr } = await supabaseAdmin.from('external_credentials').update(update).eq('id', id);
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 
@@ -62,7 +62,7 @@ export default async (req) => {
     const { id } = body;
     if (!id) return j({ error: 'id is required.' }, 400);
     const { error: dbErr } = await supabaseAdmin.from('external_credentials').delete().eq('id', id);
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 

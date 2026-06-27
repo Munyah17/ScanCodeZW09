@@ -28,7 +28,7 @@ export default async (req) => {
     event = stripe.webhooks.constructEvent(rawBuf, sig, secret);
   } catch (err) {
     console.error('[Stripe webhook] Signature verification failed:', err.message);
-    return new Response(`Webhook error: ${err.message}`, { status: 400 });
+    return new Response('Webhook signature verification failed.', { status: 400 });
   }
 
   try {
@@ -156,9 +156,7 @@ async function activateSubscription({ userId, plan }) {
   const update     = { subscription_type: plan };
 
   if (!isLifetime) {
-    const end = new Date();
-    end.setMonth(end.getMonth() + 1);
-    update.subscription_end_date = end.toISOString();
+    update.subscription_end_date = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   } else {
     update.subscription_end_date = null;
   }

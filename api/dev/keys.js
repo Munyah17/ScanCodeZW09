@@ -76,7 +76,7 @@ export default async (req) => {
 
     if (dbErr) {
       console.error('[dev/keys POST]', dbErr.message);
-      return j({ error: dbErr.message }, 500);
+      return j({ error: 'Internal server error.' }, 500);
     }
 
     return j({
@@ -103,7 +103,7 @@ export default async (req) => {
       .eq('id', keyId)
       .eq('user_id', auth.userId);
 
-    if (dbErr) return j({ error: dbErr.message }, 500);
+    if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j({ success: true });
   }
 

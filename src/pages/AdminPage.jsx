@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 import DashLayout from '../components/DashLayout';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
@@ -22,7 +21,7 @@ const CHART_TOOLTIP = { background: '#1f2937', border: '1px solid #374151', bord
 const CHART_LABEL   = { color: '#f9fafb' };
 
 // ── Tab: Users ────────────────────────────────────────────────────────────────
-function UsersTab({ isSuperAdmin, clientsOnly }) {
+function UsersTab({ token, isSuperAdmin, clientsOnly }) {
   const [users,      setUsers]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState('');
@@ -31,41 +30,50 @@ function UsersTab({ isSuperAdmin, clientsOnly }) {
   const [err,        setErr]        = useState('');
   const [editId,     setEditId]     = useState(null);
 
-  const loadUsers = () => {
-    if (!supabase) { setLoading(false); return; }
+  const loadUsers = async () => {
     setLoading(true);
-    let query = supabase
-      .from('profiles')
-      .select('id, username, user_type, subscription_type, subscription_end_date, created_at')
-      .order('created_at', { ascending: false });
-    if (clientsOnly) query = query.eq('user_type', 'user');
-    query.then(({ data, error }) => {
-      if (error) setErr(error.message);
-      else setUsers(data ?? []);
-      setLoading(false);
-    });
+    const res  = await fetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => []);
+    const all  = Array.isArray(data) ? data : [];
+    setUsers(clientsOnly ? all.filter(u => u.user_type === 'user') : all);
+    setLoading(false);
   };
 
   useEffect(() => { loadUsers(); }, []);
 
   const updatePlan = async (userId, plan) => {
-    const { error } = await supabase.from('profiles').update({ subscription_type: plan }).eq('id', userId);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/users', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ userId, subscription_type: plan }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to update plan.'); return; }
     setMsg('Plan updated.'); setEditId(null); loadUsers();
   };
 
   const updateRole = async (userId, userType) => {
     const u = users.find(u => u.id === userId);
     if (u?.email === SUPER_ADMIN_EMAIL) { setErr('Super Admin role cannot be changed.'); return; }
-    const { error } = await supabase.from('profiles').update({ user_type: userType }).eq('id', userId);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/users', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ userId, user_type: userType }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to update role.'); return; }
     setMsg('Role updated.'); loadUsers();
   };
 
   const deleteUser = async (userId) => {
     if (!window.confirm('Permanently delete this account? This cannot be undone.')) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/users', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ userId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to delete account.'); return; }
     setMsg('Account deleted.'); loadUsers();
   };
 
@@ -187,18 +195,12 @@ function StaffTab({ token }) {
   const [form,    setForm]    = useState({ email: '', username: '', password: '', role: 'admin' });
   const [saving,  setSaving]  = useState(false);
 
-  const loadStaff = () => {
-    if (!supabase) { setLoading(false); return; }
+  const loadStaff = async () => {
     setLoading(true);
-    supabase.from('profiles')
-      .select('id, username, user_type, created_at')
-      .in('user_type', STAFF_ROLES)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setErr(error.message);
-        else setStaff(data ?? []);
-        setLoading(false);
-      });
+    const res  = await fetch('/api/admin/staff', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setStaff(data.staff ?? []);
+    setLoading(false);
   };
 
   useEffect(() => { loadStaff(); }, []);
@@ -220,15 +222,25 @@ function StaffTab({ token }) {
   };
 
   const changeRole = async (id, role) => {
-    const { error } = await supabase.from('profiles').update({ user_type: role }).eq('id', id);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/staff', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ user_id: id, role }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to change role.'); return; }
     loadStaff();
   };
 
   const demote = async (id) => {
     if (!window.confirm('Remove staff status? They become a regular user.')) return;
-    const { error } = await supabase.from('profiles').update({ user_type: 'user' }).eq('id', id);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/staff', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ user_id: id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to remove staff.'); return; }
     setMsg('Staff member demoted.'); loadStaff();
   };
 
@@ -315,63 +327,44 @@ function StaffTab({ token }) {
 }
 
 // ── Tab: Analytics ────────────────────────────────────────────────────────────
-function AnalyticsTab() {
-  const [users,    setUsers]    = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+function AnalyticsTab({ token }) {
+  const [analytics, setAnalytics] = useState(null);
+  const [revenue,   setRevenue]   = useState(null);
+  const [loading,   setLoading]   = useState(true);
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
+    const headers = { Authorization: `Bearer ${token}` };
     Promise.all([
-      supabase.from('profiles').select('created_at, subscription_type').eq('user_type', 'user'),
-      supabase.from('payments').select('amount_usd, status, paid_at, created_at, method'),
-    ]).then(([{ data: u }, { data: p }]) => {
-      setUsers(u ?? []);
-      setPayments(p ?? []);
-      setLoading(false);
-    });
+      fetch('/api/admin/analytics', { headers }).then(r => r.json()).catch(() => null),
+      fetch('/api/admin/revenue',   { headers }).then(r => r.json()).catch(() => null),
+    ]).then(([a, r]) => { setAnalytics(a); setRevenue(r); setLoading(false); });
   }, []);
 
   if (loading) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+  if (!analytics || !revenue) return <div className="dp-alert dp-alert-error">Failed to load analytics.</div>;
 
-  const now = new Date();
-  const monthSlots = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return { label: d.toLocaleString('default', { month: 'short', year: '2-digit' }), y: d.getFullYear(), m: d.getMonth() + 1, users: 0, revenue: 0 };
-  });
+  const monthSlots = (analytics.monthly_trend ?? []).map((slot, i) => ({
+    label:   slot.label,
+    users:   slot.new_users ?? 0,
+    revenue: Math.round(((revenue.monthly_trend ?? [])[i]
+      ? ((revenue.monthly_trend[i].stripe ?? 0) + (revenue.monthly_trend[i].paynow ?? 0))
+      : 0) * 100) / 100,
+  }));
 
-  for (const u of users) {
-    const d = new Date(u.created_at);
-    const s = monthSlots.find(x => x.y === d.getFullYear() && x.m === d.getMonth() + 1);
-    if (s) s.users += 1;
-  }
-  for (const p of payments.filter(p => p.status === 'paid')) {
-    const d = new Date(p.paid_at ?? p.created_at);
-    const s = monthSlots.find(x => x.y === d.getFullYear() && x.m === d.getMonth() + 1);
-    if (s) s.revenue += parseFloat(p.amount_usd ?? 0);
-  }
+  const subDist    = analytics.subscription_dist ?? [];
+  const methodDist = [
+    { name: 'stripe', value: Math.round((revenue.stripe_total ?? 0) * 100) / 100 },
+    { name: 'paynow', value: Math.round((revenue.paynow_total  ?? 0) * 100) / 100 },
+  ].filter(d => d.value > 0);
 
-  const subCounts = {};
-  for (const u of users) {
-    const k = u.subscription_type ?? 'free';
-    subCounts[k] = (subCounts[k] ?? 0) + 1;
-  }
-  const subDist = Object.entries(subCounts).map(([name, value]) => ({ name, value }));
-
-  const methodCounts = {};
-  for (const p of payments.filter(p => p.status === 'paid')) {
-    methodCounts[p.method] = (methodCounts[p.method] ?? 0) + parseFloat(p.amount_usd ?? 0);
-  }
-  const methodDist = Object.entries(methodCounts).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
-
-  const totalRevenue = payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount_usd ?? 0), 0);
+  const paidTxCount = (revenue.transactions ?? []).filter(t => t.status === 'paid').length;
 
   return (
     <>
       <div className="dp-stat-row">
-        <div className="dp-stat"><div className="dp-stat-label">Total Users</div><div className="dp-stat-value">{users.length}</div></div>
-        <div className="dp-stat"><div className="dp-stat-label">Total Revenue</div><div className="dp-stat-value">{fmtMoney(totalRevenue)}</div></div>
-        <div className="dp-stat"><div className="dp-stat-label">Paid Transactions</div><div className="dp-stat-value">{payments.filter(p => p.status === 'paid').length}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Total Users</div><div className="dp-stat-value">{analytics.total_users ?? 0}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Total Revenue</div><div className="dp-stat-value">{fmtMoney(revenue.total ?? 0)}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Paid Transactions</div><div className="dp-stat-value">{paidTxCount}</div></div>
       </div>
 
       <div className="dp-section">
@@ -427,14 +420,14 @@ function AnalyticsTab() {
 }
 
 // ── Tab: Revenue ──────────────────────────────────────────────────────────────
-function RevenueTab() {
+function RevenueTab({ token }) {
   const [payments, setPayments] = useState([]);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
-    supabase.from('payments').select('*').order('created_at', { ascending: false }).limit(200)
-      .then(({ data }) => { setPayments(data ?? []); setLoading(false); });
+    fetch('/api/admin/revenue', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => ({}))
+      .then(data => { setPayments(data.transactions ?? []); setLoading(false); });
   }, []);
 
   const paid    = payments.filter(p => p.status === 'paid');
@@ -480,7 +473,7 @@ function RevenueTab() {
 }
 
 // ── Tab: Support ──────────────────────────────────────────────────────────────
-function SupportTab() {
+function SupportTab({ token }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active,  setActive]  = useState(null);
@@ -488,19 +481,24 @@ function SupportTab() {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
-    supabase.from('support_tickets').select('*').order('created_at', { ascending: false }).limit(100)
-      .then(({ data }) => { setTickets(data ?? []); setLoading(false); });
+    fetch('/api/admin/support-tickets', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => ({}))
+      .then(data => { setTickets(data.tickets ?? []); setLoading(false); });
   }, []);
 
   const sendReply = async () => {
     if (!reply.trim() || !active) return;
     setSending(true);
-    await supabase.from('support_messages').insert({ ticket_id: active.id, body: reply.trim(), sender_role: 'admin' });
-    await supabase.from('support_tickets').update({ status: 'answered', updated_at: new Date().toISOString() }).eq('id', active.id);
-    setTickets(prev => prev.map(t => t.id === active.id ? { ...t, status: 'answered' } : t));
-    setActive(prev => ({ ...prev, status: 'answered' }));
-    setReply('');
+    const res = await fetch('/api/admin/support-tickets', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ ticket_id: active.id, reply: reply.trim() }),
+    });
+    if (res.ok) {
+      setTickets(prev => prev.map(t => t.id === active.id ? { ...t, status: 'answered' } : t));
+      setActive(prev => ({ ...prev, status: 'answered' }));
+      setReply('');
+    }
     setSending(false);
   };
 
@@ -566,7 +564,7 @@ function SupportTab() {
 }
 
 // ── Tab: Plans ────────────────────────────────────────────────────────────────
-function PlansTab() {
+function PlansTab({ token }) {
   const [plans,   setPlans]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [editId,  setEditId]  = useState(null);
@@ -574,11 +572,12 @@ function PlansTab() {
   const [saving,  setSaving]  = useState(false);
   const [msg,     setMsg]     = useState('');
 
-  const loadPlans = () => {
-    if (!supabase) { setLoading(false); return; }
+  const loadPlans = async () => {
     setLoading(true);
-    supabase.from('subscription_plans').select('*').order('price_usd', { ascending: true })
-      .then(({ data }) => { setPlans(data ?? []); setLoading(false); });
+    const res  = await fetch('/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => []);
+    setPlans(Array.isArray(data) ? data : []);
+    setLoading(false);
   };
 
   useEffect(() => { loadPlans(); }, []);
@@ -587,9 +586,14 @@ function PlansTab() {
 
   const savePlan = async () => {
     setSaving(true);
-    const { error } = await supabase.from('subscription_plans').update(draft).eq('id', editId);
+    const res  = await fetch('/api/admin/plans', {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ id: editId, ...draft }),
+    });
+    const data = await res.json().catch(() => ({}));
     setSaving(false);
-    if (error) { alert(error.message); return; }
+    if (!res.ok) { setMsg(data.error || 'Failed to update plan.'); return; }
     setMsg('Plan updated.'); setEditId(null); loadPlans();
   };
 
@@ -653,31 +657,31 @@ function PlansTab() {
 }
 
 // ── Tab: API Keys ─────────────────────────────────────────────────────────────
-function ApiKeysTab() {
+function ApiKeysTab({ token }) {
   const [keys,    setKeys]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [err,     setErr]     = useState('');
   const [search,  setSearch]  = useState('');
 
-  const loadKeys = () => {
-    if (!supabase) { setLoading(false); return; }
+  const loadKeys = async () => {
     setLoading(true);
-    supabase.from('api_keys')
-      .select('id, name, key_prefix, scopes, created_at, last_used_at, request_count, profiles(username)')
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setErr(error.message);
-        else setKeys(data ?? []);
-        setLoading(false);
-      });
+    const res  = await fetch('/api/admin/all-api-keys', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    setKeys(data.keys ?? []);
+    setLoading(false);
   };
 
   useEffect(() => { loadKeys(); }, []);
 
   const revoke = async (id) => {
     if (!window.confirm('Permanently revoke this API key?')) return;
-    const { error } = await supabase.from('api_keys').delete().eq('id', id);
-    if (error) { setErr(error.message); return; }
+    const res  = await fetch('/api/admin/all-api-keys', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ key_id: id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setErr(data.error || 'Failed to revoke key.'); return; }
     loadKeys();
   };
 
@@ -803,13 +807,13 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {activeTab === 'users'     && <UsersTab isSuperAdmin={isSuperAdmin} clientsOnly={!isSuperAdmin} />}
+      {activeTab === 'users'     && <UsersTab token={user.accessToken} isSuperAdmin={isSuperAdmin} clientsOnly={!isSuperAdmin} />}
       {activeTab === 'staff'     && isSuperAdmin && <StaffTab token={user.accessToken} />}
-      {activeTab === 'analytics' && <AnalyticsTab />}
-      {activeTab === 'revenue'   && <RevenueTab />}
-      {activeTab === 'support'   && <SupportTab />}
-      {activeTab === 'api-keys'  && isSuperAdmin && <ApiKeysTab />}
-      {activeTab === 'plans'     && isSuperAdmin && <PlansTab />}
+      {activeTab === 'analytics' && <AnalyticsTab token={user.accessToken} />}
+      {activeTab === 'revenue'   && <RevenueTab token={user.accessToken} />}
+      {activeTab === 'support'   && <SupportTab token={user.accessToken} />}
+      {activeTab === 'api-keys'  && isSuperAdmin && <ApiKeysTab token={user.accessToken} />}
+      {activeTab === 'plans'     && isSuperAdmin && <PlansTab token={user.accessToken} />}
     </DashLayout>
   );
 }
