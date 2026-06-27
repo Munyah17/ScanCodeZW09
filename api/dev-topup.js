@@ -8,9 +8,9 @@
  * On payment success the Stripe/Paynow webhook credits the wallet.
  */
 
-import Stripe                from 'stripe';
-import { initiateWebPayment } from './_utils/paynow.js';
-import { requireAuth }        from './_utils/require-auth.js';
+import Stripe      from 'stripe';
+import Paynow      from 'paynow';
+import { requireAuth } from './_utils/require-auth.js';
 import { ensureWallet }       from './_utils/wallet-ops.js';
 import { j }                  from './_utils/response.js';
 
@@ -84,16 +84,14 @@ export default async (req) => {
   }
 
   try {
-    const result = await initiateWebPayment({
-      integrationId,
-      integrationKey,
-      reference,
-      amount:      usd,
-      email:       auth.email ?? '',
-      description: `ScanCodeZW Developer Wallet â€” $${usd.toFixed(2)} Top-up`,
-      resultUrl:   process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`,
-      returnUrl:   successUrl,
-    });
+    const paynow = new Paynow(integrationId, integrationKey);
+    paynow.resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
+    paynow.returnUrl = successUrl;
+
+    const payment = paynow.createPayment(reference, auth.email ?? '');
+    payment.add(`ScanCodeZW Developer Wallet — $${usd.toFixed(2)} Top-up`, usd);
+
+    const result = await paynow.send(payment);
 
     if (!result.success) {
       console.error('[dev/topup paynow]', result.error);
@@ -103,7 +101,7 @@ export default async (req) => {
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
   } catch (err) {
     console.error('[dev/topup paynow]', err.message);
-    return j({ error: 'Failed to initiate Paynow payment.' }, 500);
+    return j({ error: err.message || 'Failed to initiate Paynow payment.' }, 500);
   }
 };
 
