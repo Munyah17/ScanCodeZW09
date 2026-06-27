@@ -9,7 +9,7 @@
  */
 
 import Stripe      from 'stripe';
-import Paynow      from 'paynow';
+import { Paynow } from 'paynow';
 import { requireAuth } from './_utils/require-auth.js';
 import { ensureWallet }       from './_utils/wallet-ops.js';
 import { j }                  from './_utils/response.js';

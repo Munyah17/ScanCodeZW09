@@ -1,4 +1,4 @@
-import Paynow from 'paynow';
+import { Paynow } from 'paynow';
 import { requireAuth }   from './_utils/require-auth.js';
 import { j }             from './_utils/response.js';
 import { supabaseAdmin } from './_utils/supabase-admin.js';
