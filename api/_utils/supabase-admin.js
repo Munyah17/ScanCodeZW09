@@ -18,7 +18,8 @@ function getAdmin() {
   }
 
   _client = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
+    auth: { persistSession: false, autoRefreshToken: false },
+    realtime: { timeout: 0 },  // disabled — serverless functions don't subscribe to realtime
   });
   return _client;
 }
