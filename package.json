@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": { "node": ">=22.0.0" },
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/dev-api-server.js",

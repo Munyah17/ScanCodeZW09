@@ -1,6 +1,8 @@
 {
   "framework": "vite",
-  "engines": { "node": "22.x" },
+  "functions": {
+    "api/*.js": { "maxDuration": 30 }
+  },
   "rewrites": [
     { "source": "/api/admin/all-api-keys",            "destination": "/api/admin-all-api-keys" },
     { "source": "/api/admin/analytics",               "destination": "/api/admin-analytics" },
