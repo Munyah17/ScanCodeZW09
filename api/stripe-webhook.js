@@ -66,6 +66,14 @@ async function handleCheckoutCompleted(session) {
   const { plan, userId, reference } = meta;
   if (!plan || !userId) return;
 
+  // Keep stripe_customer_id in sync — covers edge cases where checkout created it
+  if (session.customer) {
+    await supabaseAdmin.from('profiles')
+      .update({ stripe_customer_id: session.customer })
+      .eq('id', userId)
+      .is('stripe_customer_id', null);
+  }
+
   await upsertPayment({ reference, userId, plan, session, method: 'stripe', status: 'paid' });
   await activateSubscription({ userId, plan });
 }

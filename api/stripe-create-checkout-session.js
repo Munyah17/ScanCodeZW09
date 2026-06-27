@@ -42,21 +42,41 @@ export default async (req) => {
 
     if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: “${plan}”` }, 400);
 
-    const userId      = auth.userId;
-    const email       = auth.profile?.email ?? auth.email ?? '';
-    const reference   = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-    const appUrl      = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
-    const successUrl  = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl   = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
-    const isOneTime   = ONE_TIME_PLANS.has(plan);
+    const userId    = auth.userId;
+    const email     = auth.profile?.email ?? auth.email ?? '';
+    const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
+    const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+    const successUrl = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl  = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
+    const isOneTime  = ONE_TIME_PLANS.has(plan);
+
+    // Get or create Stripe Customer — reuse on every subsequent checkout
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', userId)
+      .single();
+
+    let stripeCustomerId = profile?.stripe_customer_id ?? null;
+
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: email || undefined,
+        metadata: { userId },
+      });
+      stripeCustomerId = customer.id;
+      await supabaseAdmin
+        .from('profiles')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', userId);
+    }
 
     const sessionParams = {
+      customer:    stripeCustomerId,
       success_url: successUrl,
       cancel_url:  cancelUrl,
       metadata:    { plan, userId, reference },
     };
-
-    if (email) sessionParams.customer_email = email;
 
     if (isOneTime) {
       sessionParams.mode = 'payment';
