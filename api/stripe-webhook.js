@@ -7,7 +7,7 @@
  *     â†’ mode === 'subscription'               â†’ activate monthly subscription
  *     â†’ mode === 'payment'                    â†’ activate lifetime plan
  *   checkout.session.expired        â†’ mark pending payment cancelled
- *   invoice.payment_succeeded       â†’ renew monthly subscription (+1 month)
+ *   invoice.paid                    â†’ renew monthly subscription (+1 month)
  *   customer.subscription.deleted   â†’ cancel/expire subscription
  */
 
@@ -39,7 +39,7 @@ export default async (req) => {
       case 'checkout.session.expired':
         await markExpired(event.data.object);
         break;
-      case 'invoice.payment_succeeded':
+      case 'invoice.paid':
         await handleInvoicePaid(event.data.object);
         break;
       case 'customer.subscription.deleted':
