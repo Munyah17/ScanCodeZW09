@@ -23,33 +23,33 @@ const PLAN_NAMES = {
 const ONE_TIME_PLANS = new Set(['lifetime']);
 
 export default async (req) => {
-  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
-  if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
-
-  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_REPLACE_ME') {
-    return j({ error: 'Card payments are not yet configured. Please use mobile money or contact support.' }, 503);
-  }
-
-  const { auth, error: authErr } = await requireAuth(req);
-  if (authErr) return authErr;
-
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-
-  let body;
-  try { body = await req.json(); } catch { body = {}; }
-  const { plan, reference: clientRef } = body;
-
-  if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
-
-  const userId      = auth.userId;
-  const email       = auth.profile?.email ?? auth.email ?? '';
-  const reference   = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-  const appUrl      = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
-  const successUrl  = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl   = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
-  const isOneTime   = ONE_TIME_PLANS.has(plan);
-
   try {
+    if (req.method === 'OPTIONS') return new Response('', { status: 200 });
+    if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
+
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'sk_test_REPLACE_ME') {
+      return j({ error: 'Card payments are not yet configured. Please use mobile money or contact support.' }, 503);
+    }
+
+    const { auth, error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
+
+    let body;
+    try { body = await req.json(); } catch { body = {}; }
+    const { plan, reference: clientRef } = body;
+
+    if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: “${plan}”` }, 400);
+
+    const userId      = auth.userId;
+    const email       = auth.profile?.email ?? auth.email ?? '';
+    const reference   = clientRef ?? `SCZ-${userId}-${Date.now()}`;
+    const appUrl      = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+    const successUrl  = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl   = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
+    const isOneTime   = ONE_TIME_PLANS.has(plan);
+
     const sessionParams = {
       success_url: successUrl,
       cancel_url:  cancelUrl,
@@ -59,7 +59,6 @@ export default async (req) => {
     if (email) sessionParams.customer_email = email;
 
     if (isOneTime) {
-      // Lifetime â€” one-time payment
       sessionParams.mode = 'payment';
       sessionParams.payment_method_types = ['card'];
       sessionParams.line_items = [{
@@ -71,24 +70,21 @@ export default async (req) => {
         quantity: 1,
       }];
     } else {
-      // Monthly plans â€” recurring subscription
       sessionParams.mode = 'subscription';
       sessionParams.line_items = [{
         price_data: {
-          currency:   'usd',
-          unit_amount: PLAN_AMOUNTS_CENTS[plan],
+          currency:     'usd',
+          unit_amount:  PLAN_AMOUNTS_CENTS[plan],
           product_data: { name: PLAN_NAMES[plan] },
-          recurring: { interval: 'month' },
+          recurring:    { interval: 'month' },
         },
         quantity: 1,
       }];
-      // Pass reference through subscription metadata too
       sessionParams.subscription_data = { metadata: { plan, userId, reference } };
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // Create a pending record so PaymentReturn can find it while waiting for the webhook
     await supabaseAdmin.from('payments').upsert({
       reference,
       user_id:    userId,
@@ -103,8 +99,8 @@ export default async (req) => {
     return j({ url: session.url });
 
   } catch (err) {
-    console.error('[Stripe] create-checkout-session error:', err.message);
-    return j({ error: 'Internal server error.' }, 500);
+    console.error('[Stripe] unhandled error:', err.message, err.stack);
+    return j({ error: err.message || 'Stripe checkout failed.' }, 500);
   }
 };
 

@@ -21,34 +21,34 @@ const PLAN_LABELS  = {
 };
 
 export default async (req) => {
-  if (req.method === 'OPTIONS') return new Response('', { status: 200 });
-  if (req.method !== 'POST')   return j({ error: 'Method not allowed' }, 405);
-
-  const integrationId  = process.env.PAYNOW_INTEGRATION_ID;
-  const integrationKey = process.env.PAYNOW_INTEGRATION_KEY;
-
-  if (!integrationId || integrationId === 'REPLACE_ME') {
-    return j({ error: 'Paynow is not configured. Please contact support.' }, 503);
-  }
-
-  const { auth, error: authErr } = await requireAuth(req);
-  if (authErr) return authErr;
-
-  let body;
-  try { body = await req.json(); } catch { body = {}; }
-
-  const { plan, reference: clientRef } = body;
-
-  if (!plan || !PLAN_AMOUNTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
-
-  const userId    = auth.userId;
-  const email     = auth.email ?? '';
-  const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-  const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
-  const resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
-  const returnUrl = `${process.env.PAYNOW_RETURN_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&plan=${encodeURIComponent(plan)}`;
-
   try {
+    if (req.method === 'OPTIONS') return new Response('', { status: 200 });
+    if (req.method !== 'POST')   return j({ error: 'Method not allowed' }, 405);
+
+    const integrationId  = process.env.PAYNOW_INTEGRATION_ID;
+    const integrationKey = process.env.PAYNOW_INTEGRATION_KEY;
+
+    if (!integrationId || integrationId === 'REPLACE_ME') {
+      return j({ error: 'Paynow is not configured. Please contact support.' }, 503);
+    }
+
+    const { auth, error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
+    let body;
+    try { body = await req.json(); } catch { body = {}; }
+
+    const { plan, reference: clientRef } = body;
+
+    if (!plan || !PLAN_AMOUNTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
+
+    const userId    = auth.userId;
+    const email     = auth.email ?? '';
+    const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
+    const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+    const resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
+    const returnUrl = `${process.env.PAYNOW_RETURN_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&plan=${encodeURIComponent(plan)}`;
+
     const result = await initiateWebPayment({
       integrationId,
       integrationKey,
@@ -78,8 +78,8 @@ export default async (req) => {
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
 
   } catch (err) {
-    console.error('[Paynow] initiate error:', err.message);
-    return j({ error: 'Failed to initiate Paynow payment. Please try again.' }, 500);
+    console.error('[Paynow] unhandled error:', err.message, err.stack);
+    return j({ error: err.message || 'Paynow initiation failed.' }, 500);
   }
 };
 
