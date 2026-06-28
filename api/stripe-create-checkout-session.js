@@ -106,7 +106,9 @@ export default async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    await supabaseAdmin.from('payments').upsert({
+    // Session URL obtained — return it immediately so user reaches Stripe checkout UI.
+    // DB record is fire-and-forget; a failed insert must never block the redirect.
+    supabaseAdmin.from('payments').upsert({
       reference,
       user_id:    userId,
       plan,
@@ -114,7 +116,9 @@ export default async (req) => {
       method:     'stripe',
       stripe_pi:  session.id,
       status:     'pending',
-    }, { onConflict: 'reference' });
+    }, { onConflict: 'reference' }).then(({ error }) => {
+      if (error) console.warn('[Stripe] DB insert warning:', error.message);
+    });
 
     return j({ url: session.url });
 

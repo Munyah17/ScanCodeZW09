@@ -54,7 +54,9 @@ export default async (req) => {
       return j({ error: result.error || 'Paynow payment initiation failed.' }, 502);
     }
 
-    await supabaseAdmin.from('payments').insert({
+    // Redirect URL obtained — return it immediately so user reaches Paynow checkout UI.
+    // DB record is fire-and-forget; a failed insert must never block the redirect.
+    supabaseAdmin.from('payments').insert({
       reference,
       user_id:         userId,
       plan,
@@ -62,8 +64,9 @@ export default async (req) => {
       method:          'paynow',
       paynow_poll_url: result.pollUrl ?? null,
       status:          'pending',
+    }).then(({ error }) => {
+      if (error) console.warn('[Paynow] DB insert warning:', error.message);
     });
-    // Supabase builders are thenables, not Promises — use destructured error, not .catch()
 
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
 
