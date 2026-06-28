@@ -1,13 +1,3 @@
-﻿/**
- * POST /api/stripe/create-checkout-session
- * Body: { plan, reference? }
- *
- * Monthly plans use mode:'subscription' with recurring billing.
- * Lifetime uses mode:'payment' (one-time charge).
- *
- * Test card: 4242 4242 4242 4242  exp: any future  cvc: any 3 digits
- */
-
 import Stripe from 'stripe';
 import { requireAuth }   from './_utils/require-auth.js';
 import { j }             from './_utils/response.js';
@@ -34,13 +24,11 @@ export default async (req) => {
     const { auth, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-
     let body;
     try { body = await req.json(); } catch { body = {}; }
     const { plan, reference: clientRef } = body;
 
-    if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: “${plan}”` }, 400);
+    if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
 
     const userId    = auth.userId;
     const email     = auth.profile?.email ?? auth.email ?? '';
@@ -50,37 +38,49 @@ export default async (req) => {
     const cancelUrl  = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
     const isOneTime  = ONE_TIME_PLANS.has(plan);
 
-    // Get or create Stripe Customer — reuse on every subsequent checkout
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('stripe_customer_id')
-      .eq('id', userId)
-      .single();
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
-    let stripeCustomerId = profile?.stripe_customer_id ?? null;
+    // Insert pending record before calling Stripe — reference exists in DB before redirect
+    await supabaseAdmin.from('payments').insert({
+      reference,
+      user_id:    userId,
+      plan,
+      amount_usd: PLAN_AMOUNTS_CENTS[plan] / 100,
+      method:     'stripe',
+      status:     'pending',
+    });
+
+    // Get or create Stripe Customer — gracefully skip if profile lookup fails
+    let stripeCustomerId = null;
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', userId)
+        .single();
+      stripeCustomerId = profile?.stripe_customer_id ?? null;
+    } catch { /* non-fatal — continue without customer ID */ }
 
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: email || undefined,
-        metadata: { userId },
-      });
+      const customer = await stripe.customers.create({ email: email || undefined, metadata: { userId } });
       stripeCustomerId = customer.id;
-      await supabaseAdmin
-        .from('profiles')
+      // Save in background — don't block checkout
+      supabaseAdmin.from('profiles')
         .update({ stripe_customer_id: stripeCustomerId })
-        .eq('id', userId);
+        .eq('id', userId)
+        .then(({ error }) => { if (error) console.warn('[Stripe] customer ID save:', error.message); });
     }
 
     const sessionParams = {
-      customer:    stripeCustomerId,
-      success_url: successUrl,
-      cancel_url:  cancelUrl,
-      metadata:    { plan, userId, reference },
+      customer:             stripeCustomerId,
+      success_url:          successUrl,
+      cancel_url:           cancelUrl,
+      metadata:             { plan, userId, reference },
+      payment_method_types: ['card'],
     };
 
     if (isOneTime) {
       sessionParams.mode = 'payment';
-      sessionParams.payment_method_types = ['card'];
       sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
@@ -91,7 +91,6 @@ export default async (req) => {
       }];
     } else {
       sessionParams.mode = 'subscription';
-      sessionParams.payment_method_types = ['card'];
       sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
@@ -106,19 +105,11 @@ export default async (req) => {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    // Session URL obtained — return it immediately so user reaches Stripe checkout UI.
-    // DB record is fire-and-forget; a failed insert must never block the redirect.
-    supabaseAdmin.from('payments').upsert({
-      reference,
-      user_id:    userId,
-      plan,
-      amount_usd: PLAN_AMOUNTS_CENTS[plan] / 100,
-      method:     'stripe',
-      stripe_pi:  session.id,
-      status:     'pending',
-    }, { onConflict: 'reference' }).then(({ error }) => {
-      if (error) console.warn('[Stripe] DB insert warning:', error.message);
-    });
+    // Update stripe session ID in background — URL is all the client needs now
+    supabaseAdmin.from('payments')
+      .update({ stripe_pi: session.id })
+      .eq('reference', reference)
+      .then(({ error }) => { if (error) console.warn('[Stripe] session ID update:', error.message); });
 
     return j({ url: session.url });
 

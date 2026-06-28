@@ -40,6 +40,16 @@ export default async (req) => {
     const resultUrl = process.env.PAYNOW_RESULT_URL ?? `${appUrl}/api/paynow/callback`;
     const returnUrl = `${process.env.PAYNOW_RETURN_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&plan=${encodeURIComponent(plan)}`;
 
+    // Insert pending record first — before calling Paynow
+    await supabaseAdmin.from('payments').insert({
+      reference,
+      user_id:    userId,
+      plan,
+      amount_usd: PLAN_AMOUNTS[plan],
+      method:     'paynow',
+      status:     'pending',
+    });
+
     const paynow = new Paynow(integrationId, integrationKey);
     paynow.resultUrl = resultUrl;
     paynow.returnUrl = returnUrl;
@@ -54,19 +64,11 @@ export default async (req) => {
       return j({ error: result.error || 'Paynow payment initiation failed.' }, 502);
     }
 
-    // Redirect URL obtained — return it immediately so user reaches Paynow checkout UI.
-    // DB record is fire-and-forget; a failed insert must never block the redirect.
-    supabaseAdmin.from('payments').insert({
-      reference,
-      user_id:         userId,
-      plan,
-      amount_usd:      PLAN_AMOUNTS[plan],
-      method:          'paynow',
-      paynow_poll_url: result.pollUrl ?? null,
-      status:          'pending',
-    }).then(({ error }) => {
-      if (error) console.warn('[Paynow] DB insert warning:', error.message);
-    });
+    // Update poll URL in background — redirect URL is all the client needs
+    supabaseAdmin.from('payments')
+      .update({ paynow_poll_url: result.pollUrl ?? null })
+      .eq('reference', reference)
+      .then(({ error }) => { if (error) console.warn('[Paynow] poll URL update:', error.message); });
 
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
 

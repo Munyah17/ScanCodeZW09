@@ -59,16 +59,8 @@ export default function CheckoutPage() {
         checkoutUrl = data.redirectUrl;
       }
 
-      // Try to open checkout in a new tab; fall back to same-tab redirect if popup is blocked
-      const newTab = window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
-      if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
-        // Popup blocked — redirect in the same tab (normal SPA navigation)
-        window.location.href = checkoutUrl;
-      } else {
-        // New tab opened — show a waiting state on this page
-        setAwaitingPayment({ reference });
-        setLoading(false);
-      }
+      // Full browser redirect — same tab, no popup, works with all providers
+      window.location.href = checkoutUrl;
     } catch (err) {
       setError(err.message || 'Could not start checkout. Please try again.');
       setLoading(false);
