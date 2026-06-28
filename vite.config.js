@@ -18,21 +18,15 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // React core — cached aggressively, changes least often
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Supabase client
+          'vendor-react':    ['react', 'react-dom', 'react-router-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
-          // Stripe — only loaded on payment pages
-          'vendor-stripe': ['@stripe/stripe-js', '@stripe/react-stripe-js'],
-          // PDF/image generation — heavy, only used on barcode page
-          'vendor-pdf': ['jspdf', 'html2canvas'],
-          // Barcode/QR rendering
-          'vendor-barcode': ['jsbarcode', 'qrcode'],
+          'vendor-stripe':   ['@stripe/stripe-js', '@stripe/react-stripe-js'],
+          'vendor-pdf':      ['jspdf', 'html2canvas'],
+          'vendor-barcode':  ['jsbarcode', 'qrcode'],
+          'vendor-charts':   ['recharts'],
         },
       },
     },
-    // Raise the warning threshold — our largest remaining chunk (vendor-pdf)
-    // is expected to be ~400KB; suppress noise below 600KB
     chunkSizeWarningLimit: 600,
   },
 });
