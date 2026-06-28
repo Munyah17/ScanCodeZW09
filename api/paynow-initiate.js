@@ -62,7 +62,8 @@ export default async (req) => {
       method:          'paynow',
       paynow_poll_url: result.pollUrl ?? null,
       status:          'pending',
-    }).catch(err => console.warn('[Paynow] Supabase insert warning:', err.message));
+    });
+    // Supabase builders are thenables, not Promises — use destructured error, not .catch()
 
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
 

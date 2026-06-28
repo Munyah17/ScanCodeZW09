@@ -91,6 +91,7 @@ export default async (req) => {
       }];
     } else {
       sessionParams.mode = 'subscription';
+      sessionParams.payment_method_types = ['card'];
       sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
@@ -113,8 +114,7 @@ export default async (req) => {
       method:     'stripe',
       stripe_pi:  session.id,
       status:     'pending',
-    }, { onConflict: 'reference' })
-      .catch(err => console.warn('[Stripe] pending insert warning:', err.message));
+    }, { onConflict: 'reference' });
 
     return j({ url: session.url });
 
