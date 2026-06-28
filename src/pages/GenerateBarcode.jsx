@@ -24,10 +24,9 @@ const EMPTY_FORM = {
 };
 
 const PLAN_LIMITS = {
-  free:       { max_products: 1,   max_variations_per_product: 1   },
-  starter:    { max_products: 3,   max_variations_per_product: 3   },
-  business:   { max_products: 20,  max_variations_per_product: 15  },
-  pro:        { max_products: 100, max_variations_per_product: 50  },
+  starter:    { max_products: 3,    max_variations_per_product: 3   },
+  business:   { max_products: 20,   max_variations_per_product: 15  },
+  pro:        { max_products: 100,  max_variations_per_product: 50  },
   lifetime:   { max_products: null, max_variations_per_product: null },
   enterprise: { max_products: null, max_variations_per_product: null },
 };
@@ -285,6 +284,23 @@ export default function GenerateBarcode() {
   if (loading) return (
     <DashLayout active="generate" title="Generate Barcode">
       <div className="dp-loading"><div className="dp-spinner" /></div>
+    </DashLayout>
+  );
+
+  const activePlan = user?.subscription_type;
+  const hasAccess  = isAdmin || (activePlan && activePlan !== 'free' && PLAN_LIMITS[activePlan] !== undefined);
+  if (!hasAccess) return (
+    <DashLayout active="generate" title="Generate Barcode">
+      <div className="dp-section" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+        <h2 style={{ marginBottom: '0.5rem' }}>Subscription required</h2>
+        <p style={{ color: '#9ca3af', marginBottom: '2rem', maxWidth: 480, margin: '0 auto 2rem' }}>
+          You need an active plan to generate barcodes. Choose a plan to get started — your account is ready, you just need to subscribe.
+        </p>
+        <a href="/pricing" className="dp-btn dp-btn-primary" style={{ display: 'inline-block', padding: '0.75rem 2rem', borderRadius: 10, textDecoration: 'none', fontSize: '1rem', fontWeight: 700 }}>
+          View Plans &amp; Pricing
+        </a>
+      </div>
     </DashLayout>
   );
 

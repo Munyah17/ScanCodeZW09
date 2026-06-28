@@ -1,11 +1,12 @@
 const API_BASE = '';
 
 export const PLAN_PRICES = {
-  free:     { label: 'Free Trial', usd: 0 },
-  starter:  { label: 'Starter',    usd: 4.79  },
-  business: { label: 'Business',   usd: 11.99  },
-  pro:      { label: 'Pro',        usd: 24.99 },
-  lifetime: { label: 'Lifetime',   usd: 129.99, oneTime: true },
+  starter:    { label: 'Starter',               usd: 5.90   },
+  business:   { label: 'Business',              usd: 16.90  },
+  pro:        { label: 'Pro',                   usd: 29.90  },
+  lifetime:   { label: 'Lifetime Access',       usd: 129.99, oneTime: true },
+  otg_single: { label: '1 Barcode Generation',  usd: 10.00,  oneTime: true },
+  otg_triple: { label: '3 Barcode Generations', usd: 20.00,  oneTime: true },
 };
 
 async function parseResponse(res) {

@@ -40,7 +40,7 @@ function bucketByWeek(records, dateKey, valueKey) {
   return Object.entries(buckets).map(([date, value]) => ({ date, value }));
 }
 
-const PLAN_PRICES = { free: 0, starter: 4.79, business: 11.99, pro: 24.99, enterprise: 129.99 };
+const PLAN_PRICES = { starter: 5.90, business: 16.90, pro: 29.90, lifetime: 129.99, enterprise: 0 };
 
 function periodLabel(filter, data) {
   if (!data?.length) return '';

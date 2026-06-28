@@ -6,17 +6,9 @@ import Alert from '../components/Alert';
 
 const PLANS = [
   {
-    key: 'free',
-    name: 'Free Trial',
-    price: '$0',
-    suffix: '',
-    color: '#6b7280',
-    features: ['1 barcode/month', '1 QR code/month', 'EAN-13 & UPC-A', 'PNG download'],
-  },
-  {
     key: 'starter',
     name: 'Starter',
-    price: '$4.79',
+    price: '$5.90',
     suffix: '/mo',
     color: '#10b981',
     features: ['3 products', '3 variations/product', 'EAN-13 & UPC-A', 'PNG & PDF downloads'],
@@ -24,7 +16,7 @@ const PLANS = [
   {
     key: 'business',
     name: 'Business',
-    price: '$11.99',
+    price: '$16.90',
     suffix: '/mo',
     color: '#4f46e5',
     popular: true,
@@ -33,7 +25,7 @@ const PLANS = [
   {
     key: 'pro',
     name: 'Pro',
-    price: '$24.99',
+    price: '$29.90',
     suffix: '/mo',
     color: '#8b5cf6',
     features: ['100 products', '50 variations/product', 'API access', 'Advanced analytics'],
@@ -52,7 +44,7 @@ export default function Register() {
   const { register }   = useAuth();
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
-  const preselect      = searchParams.get('plan') ?? 'free';
+  const preselect      = searchParams.get('plan') ?? 'starter';
 
   const [form, setForm]       = useState({ username: '', email: '', password: '', confirm_password: '', terms: false, plan: preselect });
   const [error, setError]     = useState('');
@@ -76,12 +68,7 @@ export default function Register() {
       const result = await register(form.username, form.email, form.password);
       if (!result.success) { setError(result.error); return; }
 
-      if (form.plan === 'free') {
-        navigate('/dashboard');
-        return;
-      }
-
-      // Paid plan — send to checkout gateway selection page
+      // Always go to checkout — no free plan
       navigate(`/checkout?plan=${form.plan}`);
 
     } catch (err) {

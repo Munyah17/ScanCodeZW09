@@ -12,15 +12,15 @@ const FEATURES = [
 
 const PLANS = [
   {
-    name: 'Starter', price: '4.79', popular: false,
+    name: 'Starter', price: '5.90', popular: false,
     features: ['3 products', '3 variations / product', 'EAN-13 & UPC-A', 'QR code generation', 'PNG & PDF downloads', 'Email support'],
   },
   {
-    name: 'Business', price: '11.99', popular: true,
+    name: 'Business', price: '16.90', popular: true,
     features: ['20 products', '15 variations / product', 'All barcode formats', 'Custom branding on exports', 'Priority email support', 'Advanced exports'],
   },
   {
-    name: 'Pro', price: '24.99', popular: false,
+    name: 'Pro', price: '29.90', popular: false,
     features: ['100 products', '50 variations / product', 'All formats + API access', '24/7 phone & email support', 'Advanced analytics', 'Multi-country switching'],
   },
 ];

@@ -21,6 +21,71 @@ const CHART_TOOLTIP = { background: '#1f2937', border: '1px solid #374151', bord
 const CHART_LABEL   = { color: '#f9fafb' };
 
 // ── Tab: Users ────────────────────────────────────────────────────────────────
+const EMPTY_ENT_CONFIG = { max_products: '', max_variations_per_product: '', unlimited_products: false, unlimited_variations: false };
+
+function EnterpriseConfigEditor({ userId, existing, token, onSaved, onCancel }) {
+  const [cfg, setCfg] = useState(() => {
+    const e = existing ?? {};
+    return {
+      max_products:              e.max_products            === null ? '' : (e.max_products ?? ''),
+      max_variations_per_product: e.max_variations_per_product === null ? '' : (e.max_variations_per_product ?? ''),
+      unlimited_products:        e.max_products            === null,
+      unlimited_variations:      e.max_variations_per_product === null,
+    };
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const enterprise_config = {
+      max_products:             cfg.unlimited_products   ? null : (parseInt(cfg.max_products, 10)              || null),
+      max_variations_per_product: cfg.unlimited_variations ? null : (parseInt(cfg.max_variations_per_product, 10) || null),
+    };
+    const res  = await fetch('/api/admin/users', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ userId, subscription_type: 'enterprise', enterprise_config }),
+    });
+    setSaving(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || 'Failed to save.'); return; }
+    onSaved();
+  };
+
+  const row = (label, field, unlimitedField) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.6rem' }}>
+      <span style={{ minWidth: 200, fontSize: '0.85rem', color: '#9ca3af' }}>{label}</span>
+      {cfg[unlimitedField] ? (
+        <span className="dp-badge dp-badge-green" style={{ fontSize: '0.78rem' }}>Unlimited</span>
+      ) : (
+        <input
+          type="number" min="0" className="dp-input" style={{ width: 100, padding: '0.3rem 0.5rem', fontSize: '0.85rem' }}
+          value={cfg[field]}
+          onChange={e => setCfg(c => ({ ...c, [field]: e.target.value }))}
+        />
+      )}
+      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', color: '#6b7280', cursor: 'pointer' }}>
+        <input type="checkbox" checked={cfg[unlimitedField]} onChange={e => setCfg(c => ({ ...c, [unlimitedField]: e.target.checked }))} />
+        Unlimited
+      </label>
+    </div>
+  );
+
+  return (
+    <div style={{ background: '#0f172a', border: '1px solid #1e3a8a', borderRadius: 10, padding: '1rem', marginTop: '0.5rem' }}>
+      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#93c5fd', marginBottom: '0.75rem' }}>Enterprise Config</p>
+      {row('Max products', 'max_products', 'unlimited_products')}
+      {row('Max variations/product', 'max_variations_per_product', 'unlimited_variations')}
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save Enterprise'}
+        </button>
+        <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function UsersTab({ token, isSuperAdmin, clientsOnly }) {
   const [users,      setUsers]      = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -29,6 +94,7 @@ function UsersTab({ token, isSuperAdmin, clientsOnly }) {
   const [msg,        setMsg]        = useState('');
   const [err,        setErr]        = useState('');
   const [editId,     setEditId]     = useState(null);
+  const [entEditId,  setEntEditId]  = useState(null);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -42,6 +108,7 @@ function UsersTab({ token, isSuperAdmin, clientsOnly }) {
   useEffect(() => { loadUsers(); }, []);
 
   const updatePlan = async (userId, plan) => {
+    if (plan === 'enterprise') { setEditId(null); setEntEditId(userId); return; }
     const res  = await fetch('/api/admin/users', {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -133,7 +200,7 @@ function UsersTab({ token, isSuperAdmin, clientsOnly }) {
                         </select>
                       ) : (
                         <span className={`dp-badge ${PLAN_COLOR[u.subscription_type] ?? 'dp-badge-gray'}`}>
-                          {u.subscription_type ?? 'free'}
+                          {u.subscription_type ?? 'none'}
                         </span>
                       )}
                     </td>
@@ -163,16 +230,34 @@ function UsersTab({ token, isSuperAdmin, clientsOnly }) {
                       <div className="dp-row-actions">
                         <button
                           className="dp-btn dp-btn-ghost dp-btn-sm"
-                          onClick={() => setEditId(editId === u.id ? null : u.id)}
+                          onClick={() => { setEditId(editId === u.id ? null : u.id); setEntEditId(null); }}
                         >
                           {editId === u.id ? 'Done' : 'Edit Plan'}
                         </button>
+                        {u.subscription_type === 'enterprise' && (
+                          <button
+                            className="dp-btn dp-btn-ghost dp-btn-sm"
+                            style={{ color: '#93c5fd', borderColor: '#1e3a8a' }}
+                            onClick={() => { setEntEditId(entEditId === u.id ? null : u.id); setEditId(null); }}
+                          >
+                            {entEditId === u.id ? 'Close' : 'Ent. Config'}
+                          </button>
+                        )}
                         {isSuperAdmin && (
                           <button className="dp-btn dp-btn-danger dp-btn-sm" onClick={() => deleteUser(u.id)}>
                             Delete
                           </button>
                         )}
                       </div>
+                      {entEditId === u.id && (
+                        <EnterpriseConfigEditor
+                          userId={u.id}
+                          existing={u.enterprise_config}
+                          token={token}
+                          onSaved={() => { setEntEditId(null); setMsg('Enterprise config saved.'); loadUsers(); }}
+                          onCancel={() => setEntEditId(null)}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}

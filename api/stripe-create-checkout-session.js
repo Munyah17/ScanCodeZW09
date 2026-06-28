@@ -3,14 +3,23 @@ import { requireAuth }   from './_utils/require-auth.js';
 import { j }             from './_utils/response.js';
 import { supabaseAdmin } from './_utils/supabase-admin.js';
 
-const PLAN_AMOUNTS_CENTS = { starter: 479, business: 1199, pro: 2499, lifetime: 12999 };
-const PLAN_NAMES = {
-  starter:  'ScanCodeZW Starter Plan',
-  business: 'ScanCodeZW Business Plan',
-  pro:      'ScanCodeZW Pro Plan',
-  lifetime: 'ScanCodeZW Lifetime Plan',
+const PLAN_AMOUNTS_CENTS = {
+  starter:    590,
+  business:   1690,
+  pro:        2990,
+  lifetime:   12999,
+  otg_single: 1000,
+  otg_triple: 2000,
 };
-const ONE_TIME_PLANS = new Set(['lifetime']);
+const PLAN_NAMES = {
+  starter:    'ScanCodeZW Starter Plan',
+  business:   'ScanCodeZW Business Plan',
+  pro:        'ScanCodeZW Pro Plan',
+  lifetime:   'ScanCodeZW Lifetime Access',
+  otg_single: 'ScanCodeZW – 1 Barcode Generation',
+  otg_triple: 'ScanCodeZW – 3 Barcode Generations',
+};
+const ONE_TIME_PLANS = new Set(['lifetime', 'otg_single', 'otg_triple']);
 
 export default async (req) => {
   try {

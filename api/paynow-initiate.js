@@ -3,12 +3,21 @@ import { requireAuth }   from './_utils/require-auth.js';
 import { j }             from './_utils/response.js';
 import { supabaseAdmin } from './_utils/supabase-admin.js';
 
-const PLAN_AMOUNTS = { starter: 4.79, business: 11.99, pro: 24.99, lifetime: 129.99 };
+const PLAN_AMOUNTS = {
+  starter:    5.90,
+  business:   16.90,
+  pro:        29.90,
+  lifetime:   129.99,
+  otg_single: 10.00,
+  otg_triple: 20.00,
+};
 const PLAN_LABELS  = {
-  starter:  'ScanCodeZW Starter Plan',
-  business: 'ScanCodeZW Business Plan',
-  pro:      'ScanCodeZW Pro Plan',
-  lifetime: 'ScanCodeZW Lifetime Plan',
+  starter:    'ScanCodeZW Starter Plan',
+  business:   'ScanCodeZW Business Plan',
+  pro:        'ScanCodeZW Pro Plan',
+  lifetime:   'ScanCodeZW Lifetime Access',
+  otg_single: 'ScanCodeZW – 1 Barcode Generation',
+  otg_triple: 'ScanCodeZW – 3 Barcode Generations',
 };
 
 export default async (req) => {
@@ -70,6 +79,7 @@ export default async (req) => {
       .eq('reference', reference)
       .then(({ error }) => { if (error) console.warn('[Paynow] poll URL update:', error.message); });
 
+    console.log('[Paynow] redirect URL:', result.redirectUrl);
     return j({ success: true, redirectUrl: result.redirectUrl, reference });
 
   } catch (err) {
