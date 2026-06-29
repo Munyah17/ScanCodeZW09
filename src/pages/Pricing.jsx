@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
+import { VisaLogo, MastercardLogo, AmexLogo, EcoCashLogo, OneMoneyLogo, InnBucksLogo, ZipitLogo } from '../components/PaymentLogos';
 
 const PLANS = [
   {
@@ -222,10 +223,25 @@ export default function Pricing() {
             </div>
           </div>
 
-          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.85rem', marginTop: '1.5rem' }}>
-            Pay with <strong>Stripe</strong> (Visa · Mastercard · Amex) &nbsp;or&nbsp;
-            <strong> Paynow</strong> (EcoCash · OneMoney · InnBucks · ZIPIT)
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, letterSpacing: '0.05em' }}>POWERED BY</span>
+              <svg height={18} viewBox="0 0 60 24" xmlns="http://www.w3.org/2000/svg" aria-label="Stripe" role="img">
+                <text x="0" y="18" fontFamily="'Arial Black', Arial, sans-serif" fontSize="18" fontWeight="900" fill="#635BFF">stripe</text>
+              </svg>
+              <VisaLogo height={22} />
+              <MastercardLogo height={22} />
+              <AmexLogo height={22} />
+            </div>
+            <span style={{ color: '#d1d5db', fontSize: '0.85rem' }}>|</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <img src="/paynow-badge.svg" alt="Paynow" style={{ height: 22, objectFit: 'contain' }} />
+              <EcoCashLogo height={22} />
+              <OneMoneyLogo height={22} />
+              <InnBucksLogo height={22} />
+              <ZipitLogo height={22} />
+            </div>
+          </div>
         </section>
 
         {/* ── FAQ ── */}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
+import { VisaLogo, MastercardLogo, AmexLogo, EcoCashLogo, OneMoneyLogo, InnBucksLogo, ZipitLogo } from '../components/PaymentLogos';
 import {
   createStripeCheckoutSession,
   initiatePaynowRedirect,
@@ -181,9 +182,27 @@ export default function CheckoutPage() {
                       transition:     'border-color 0.15s',
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.2rem' }}>{g.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{g.sub}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, color: '#111827', marginBottom: '0.5rem' }}>{g.name}</div>
+                      {g.key === 'stripe' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <VisaLogo height={22} />
+                          <MastercardLogo height={22} />
+                          <AmexLogo height={22} />
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <img
+                            src="/paynow-badge.svg"
+                            alt="Paynow"
+                            style={{ height: 22, objectFit: 'contain' }}
+                          />
+                          <EcoCashLogo height={22} />
+                          <OneMoneyLogo height={22} />
+                          <InnBucksLogo height={22} />
+                          <ZipitLogo height={22} />
+                        </div>
+                      )}
                     </div>
                     <div style={{
                       width: 20, height: 20,

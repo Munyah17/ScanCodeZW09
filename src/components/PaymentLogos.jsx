@@ -54,3 +54,11 @@ export const ZipitLogo = ({ height = 28 }) => (
     <text x="34" y="19" fontFamily="Arial, sans-serif" fontSize="12" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="1">ZIPIT</text>
   </svg>
 );
+
+export const AmexLogo = ({ height = 28 }) => (
+  <svg height={height} viewBox="0 0 60 28" xmlns="http://www.w3.org/2000/svg" aria-label="American Express" role="img">
+    <rect width="60" height="28" rx="4" fill="#2E77BC"/>
+    <text x="30" y="19" fontFamily="Arial, sans-serif" fontSize="9" fontWeight="700" fill="white" textAnchor="middle" letterSpacing="0.3">AMERICAN</text>
+    <text x="30" y="27" fontFamily="Arial, sans-serif" fontSize="7" fontWeight="600" fill="white" textAnchor="middle" letterSpacing="0.5">EXPRESS</text>
+  </svg>
+);
