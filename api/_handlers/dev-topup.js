@@ -40,7 +40,7 @@ export default async (req) => {
   await ensureWallet(auth.userId);
 
   const reference  = `DEV-TOPUP-${auth.userId}-${Date.now()}`;
-  const appUrl     = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+  const appUrl     = process.env.APP_URL ?? 'https://www.scancode.co.zw';
   const devUrl     = process.env.DEV_PORTAL_URL ?? `${appUrl}/dev`;
   const successUrl = `${devUrl}/wallet?topped_up=true&reference=${encodeURIComponent(reference)}`;
   const cancelUrl  = `${devUrl}/wallet`;

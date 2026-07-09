@@ -1,5 +1,5 @@
 /**
- * Dev API server — runs Netlify function handlers locally without Netlify CLI.
+ * Dev API server — runs the api/ function handlers locally (production runs them on Vercel).
  * Adapts Node's IncomingMessage to a Web API Request-like object.
  *
  * Usage:  node scripts/dev-api-server.js
@@ -11,10 +11,7 @@ import { existsSync } from 'fs';
 import http from 'http';
 import { Readable } from 'stream';
 
-// Load .env.example first (contains real keys), then .env for local overrides
-if (existsSync('.env.example')) {
-  dotenvConfig({ path: '.env.example' });
-}
+// Load .env (real keys live here; .env.example holds placeholders only)
 if (existsSync('.env')) {
   dotenvConfig({ path: '.env', override: true });
 }

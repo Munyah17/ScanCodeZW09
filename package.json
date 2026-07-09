@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/dev-api-server.js",
-    "dev:netlify": "netlify dev",
     "build": "vite build",
     "preview": "vite preview"
   },

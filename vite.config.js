@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port:        5402,  // ScanCodeZW dedicated — do not use for other apps
-    strictPort:  false, // allow auto-shift when port is taken (needed for netlify dev)
+    strictPort:  false, // allow auto-shift when port is taken
     host:        true,
     proxy: {
       '/api': {

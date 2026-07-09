@@ -5,9 +5,4 @@ dist/
 .env.*.local
 .vercel/
 *.log
-
-# Local Netlify folder
-.netlify
-
-.vercel
 .env*

@@ -1,5 +1,10 @@
 # ScanCodeZW — Full Setup Guide (Netlify + Supabase)
 
+> **⚠️ OUTDATED — the app now deploys on Vercel, not Netlify.**
+> Production: GitHub `main` → Vercel project **scancodeappzw** → [www.scancode.co.zw](https://www.scancode.co.zw)
+> Deployment config lives in `vercel.json` (functions under `api/`, SPA rewrites, cache headers).
+> Environment variables are managed in the Vercel dashboard. The Netlify instructions below are kept only as a historical reference for the Supabase/Stripe/Paynow setup steps, which are still accurate — substitute your Vercel URL wherever a `netlify.app` URL appears.
+
 ## Architecture
 
 ```
