@@ -14,6 +14,7 @@ import PaymentReturn from './pages/PaymentReturn';
 import PaymentCancel from './pages/PaymentCancel';
 import CheckoutPage  from './pages/CheckoutPage';
 import MyBarcodesPage from './pages/MyBarcodesPage';
+import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import ApiKeysPage from './pages/ApiKeysPage';
@@ -75,6 +76,14 @@ export default function App() {
             element={
               <ProtectedRoute userType="user">
                 <PageTransition><MyBarcodesPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute userType="user">
+                <PageTransition><NotificationsPage /></PageTransition>
               </ProtectedRoute>
             }
           />

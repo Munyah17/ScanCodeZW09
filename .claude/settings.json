@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5402/)",
+      "Bash(cat /tmp/vite.log)",
+      "Read(//tmp/**)",
+      "Bash(node -e \"require\\('puppeteer'\\); console.log\\('puppeteer ok'\\)\")",
+      "Bash(node -e \"require\\('puppeteer-core'\\); console.log\\('puppeteer-core ok'\\)\")",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

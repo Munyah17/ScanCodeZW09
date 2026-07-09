@@ -9,7 +9,12 @@
       "Bash(rm /c/Users/munya/Desktop/ScanCodeZW/run_migrations.mjs /c/Users/munya/Desktop/ScanCodeZW/combined_setup.sql 2>/dev/null; echo \"Cleaned up\")",
       "Bash(npm run *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npm list *)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\munya\\\\Desktop\\\\ScanCodeZW\\\\.env\" | Select-String \"VITE_SUPABASE\" | ForEach-Object { if \\($_.Line.Length -gt 80\\) { $_.Line.Substring\\(0,80\\) + \"...\" } else { $_.Line } })",
+      "Bash(VERCEL_TOKEN=\"vcp_7KFhwnj6dCAE4v6v8GddHHCzuv5dJuHWAR8FK6mib5wz9V7dy51ZSNUW\" vercel deploy --prod)"
     ]
   }
 }

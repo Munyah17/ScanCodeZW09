@@ -57,10 +57,8 @@ export default function Header() {
                     <small>{user.email}</small>
                   </div>
                   <div className="dropdown-divider"></div>
-                  <Link to="/profile"     onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-user-circle"></i> My Profile</Link>
-                  <Link to="/my-barcodes" onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-th"></i> My Barcodes</Link>
-                  <Link to="/settings"    onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-cog"></i> Settings</Link>
-                  <Link to="/pricing"     onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-crown"></i> Upgrade Plan</Link>
+                  <Link to="/profile"       onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-user-circle"></i> Profile</Link>
+                  <Link to="/notifications" onClick={() => { setMobileOpen(false); setDropdownOpen(false); }}><i className="fas fa-bell"></i> Notifications</Link>
                   <div className="dropdown-divider"></div>
                   <button className="dropdown-logout" onClick={handleLogout}>
                     <i className="fas fa-sign-out-alt"></i> Logout
