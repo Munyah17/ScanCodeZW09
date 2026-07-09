@@ -13,7 +13,19 @@ export async function requireAuth(req) {
     .from('profiles')
     .select('id, username, subscription_type, enterprise_config, user_type')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
+
+  // If profile doesn't exist, create a default one
+  if (!profile) {
+    try {
+      await supabaseAdmin.from('profiles').insert({
+        id: user.id,
+        username: user.user_metadata?.username ?? user.email?.split('@')[0] ?? 'user',
+        subscription_type: 'free',
+        user_type: 'user',
+      });
+    } catch { /* profile may already exist, silently continue */ }
+  }
 
   return { auth: { userId: user.id, email: user.email, profile }, error: null };
 }
