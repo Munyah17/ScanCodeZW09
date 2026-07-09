@@ -6,7 +6,10 @@
       "Read(//tmp/**)",
       "Bash(node -e \"require\\('puppeteer'\\); console.log\\('puppeteer ok'\\)\")",
       "Bash(node -e \"require\\('puppeteer-core'\\); console.log\\('puppeteer-core ok'\\)\")",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(cp \"C:\\\\Users\\\\munya\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-munya-Desktop-ScanCodeZW\\\\b8549f2e-ab6d-4144-8825-17c47e413afa\\\\scratchpad\\\\verify-admin.js\" \"C:\\\\Users\\\\munya\\\\Desktop\\\\ScanCodeZW\\\\verify-admin.js\")",
+      "Bash(node verify-admin.js)",
+      "Bash(node --input-type=module --eval ' *)"
     ]
   }
 }
