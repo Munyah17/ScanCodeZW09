@@ -143,8 +143,11 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Auto-redirect Super Admin and Admin to their dashboard
-  if (user?.isSuperAdmin || (user?.isAdmin && user?.user_type !== 'user')) {
+  // Auto-redirect to role-specific dashboards
+  if (user?.isSuperAdmin) {
+    return <Navigate to="/super-admin" replace />;
+  }
+  if (user?.isAdmin && user?.user_type !== 'user') {
     return <Navigate to="/admin" replace />;
   }
 

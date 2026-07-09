@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AdminPage from './pages/AdminPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import GenerateBarcode from './pages/GenerateBarcode';
 import Products from './pages/Products';
 import PaymentReturn from './pages/PaymentReturn';
@@ -116,6 +117,14 @@ export default function App() {
             element={
               <ProtectedRoute userType="user">
                 <PageTransition><TeamPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin"
+            element={
+              <ProtectedRoute userType="super_admin">
+                <PageTransition><SuperAdminDashboard /></PageTransition>
               </ProtectedRoute>
             }
           />
