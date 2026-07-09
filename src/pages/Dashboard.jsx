@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -141,6 +142,11 @@ export default function Dashboard() {
   const [filter,  setFilter]  = useState('All Time');
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Auto-redirect Super Admin and Admin to their dashboard
+  if (user?.isSuperAdmin || (user?.isAdmin && user?.user_type !== 'user')) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const isAdmin = user?.isAdmin;
 
