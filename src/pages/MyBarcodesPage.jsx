@@ -118,30 +118,49 @@ export default function MyBarcodesPage() {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=0`, {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setErr('Failed to load barcodes.'); setLoading(false); return; }
-    setProducts(data.products ?? {});
-    setVariations(data.barcodes ?? []);
-    setHasMore(data.has_more ?? false);
-    setOffset(PAGE_SIZE);
-    setLoading(false);
+    try {
+      setErr('');
+      const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=0`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(data.error || 'Unable to load barcodes. Please try again.');
+        setLoading(false);
+        return;
+      }
+      setProducts(data.products ?? {});
+      setVariations(data.barcodes ?? []);
+      setHasMore(data.has_more ?? false);
+      setOffset(PAGE_SIZE);
+    } catch (e) {
+      setErr('Network error. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadMore = async () => {
     if (loadingMore) return;
     setLoadingMore(true);
-    const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=${offset}`, {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) { setErr('Failed to load more barcodes.'); setLoadingMore(false); return; }
-    setVariations(prev => [...prev, ...(data.barcodes ?? [])]);
-    setHasMore(data.has_more ?? false);
-    setOffset(o => o + PAGE_SIZE);
-    setLoadingMore(false);
+    setErr('');
+    try {
+      const res  = await fetch(`/api/barcodes/my-list?limit=${PAGE_SIZE}&offset=${offset}`, {
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(data.error || 'Unable to load more barcodes.');
+        return;
+      }
+      setVariations(prev => [...prev, ...(data.barcodes ?? [])]);
+      setHasMore(data.has_more ?? false);
+      setOffset(o => o + PAGE_SIZE);
+    } catch (e) {
+      setErr('Network error while loading more barcodes.');
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const filtered = variations.filter(v => {
@@ -160,7 +179,18 @@ export default function MyBarcodesPage() {
 
   return (
     <DashLayout active="barcodes" title="My Barcodes" actions={actions}>
-      {err && <div className="dp-alert dp-alert-error">{err}</div>}
+      {err && (
+        <div className="dp-alert dp-alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{err}</span>
+          <button
+            className="dp-btn dp-btn-sm dp-btn-primary"
+            onClick={load}
+            style={{ marginLeft: '1rem', whiteSpace: 'nowrap' }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="dp-filterbar">
