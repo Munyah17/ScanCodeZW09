@@ -67,7 +67,9 @@ export default function GenerateBarcode() {
       const data = await res.json().catch(() => ({}));
       const enriched = data.products ?? [];
       setProducts(enriched);
-      setSubscription(data.subscription ?? PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter);
+      // Super Admin has unlimited access
+      const planLimits = user?.isSuperAdmin ? { max_products: null, max_variations_per_product: null } : (data.subscription ?? PLAN_LIMITS[user.subscription_type] ?? PLAN_LIMITS.starter);
+      setSubscription(planLimits);
       setProductCount(enriched.length);
       setBarcodeCount(data.barcode_count ?? 0);
     } finally {
@@ -288,7 +290,7 @@ export default function GenerateBarcode() {
   );
 
   const activePlan = user?.subscription_type;
-  const hasAccess  = isAdmin || (activePlan && activePlan !== 'free' && PLAN_LIMITS[activePlan] !== undefined);
+  const hasAccess  = user?.isSuperAdmin || isAdmin || (activePlan && activePlan !== 'free' && PLAN_LIMITS[activePlan] !== undefined);
   if (!hasAccess) return (
     <DashLayout active="generate" title="Generate Barcode">
       <div className="dp-section" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
