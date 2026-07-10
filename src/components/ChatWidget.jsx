@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3000' : '';
+const API_BASE = ''; // same-origin; Vite dev proxy forwards /api to the dev API server
 const QUEUE_TIMEOUT_MS = 120000;  // 120 seconds
 
 const STATUS = {

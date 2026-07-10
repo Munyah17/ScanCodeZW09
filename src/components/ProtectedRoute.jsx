@@ -18,9 +18,5 @@ export default function ProtectedRoute({ children, userType }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (userType === 'admin' && !staffRoles.includes(user.user_type)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return children;
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DevPortalLayout from './DevPortalLayout';
 
-const API = import.meta.env.DEV ? 'http://localhost:3042' : '';
+const API = ''; // same-origin; Vite dev proxy forwards /api to the dev API server
 
 function StatCard({ label, value, sub, color = '#58a6ff' }) {
   return (

@@ -14,6 +14,7 @@
 import Stripe from 'stripe';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
 import { j }             from '../_utils/response.js';
+import { notify }        from '../_utils/notify.js';
 
 export default async (req) => {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -99,6 +100,7 @@ async function handleWalletTopup(session) {
     return;
   }
   console.log(`[Stripe webhook] Wallet topped up $${usd} for user ${userId}. Balance: $${result?.balance}`);
+  await notify(userId, 'Wallet top-up received', `$${usd.toFixed(2)} USD was added to your developer wallet.`, 'success');
 }
 
 // â”€â”€ Monthly invoice renewal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -140,6 +142,7 @@ async function handleSubscriptionCancelled(sub) {
     .eq('id', userId);
 
   console.log(`[Stripe webhook] Subscription cancelled for user ${userId}`);
+  await notify(userId, 'Subscription ended', 'Your subscription has been cancelled. You are now on the free tier.', 'warning');
 }
 
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -171,6 +174,7 @@ async function activateSubscription({ userId, plan }) {
 
   await supabaseAdmin.from('profiles').update(update).eq('id', userId);
   console.log(`[Stripe webhook] Activated ${plan} for user ${userId}${isLifetime ? ' (lifetime)' : ''}`);
+  await notify(userId, 'Payment received', `Your ${plan} plan is now active. Thank you!`, 'success');
 }
 
 async function markExpired(session) {

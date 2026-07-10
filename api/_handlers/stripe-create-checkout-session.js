@@ -42,7 +42,7 @@ export default async (req) => {
     const userId    = auth.userId;
     const email     = auth.profile?.email ?? auth.email ?? '';
     const reference = clientRef ?? `SCZ-${userId}-${Date.now()}`;
-    const appUrl    = process.env.APP_URL ?? 'https://scancodezw.netlify.app';
+    const appUrl    = process.env.APP_URL ?? 'https://www.scancode.co.zw';
     const successUrl = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl  = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
     const isOneTime  = ONE_TIME_PLANS.has(plan);

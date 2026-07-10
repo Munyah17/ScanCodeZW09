@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import DevPortalLayout from './DevPortalLayout';
 
-const API = import.meta.env.DEV ? 'http://localhost:3042' : '';
+const API = ''; // same-origin; Vite dev proxy forwards /api to the dev API server
 
 export default function DevUsage() {
   const { user }  = useAuth();

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import DashLayout from '../components/DashLayout';
 
 const SCOPES = ['read:barcodes', 'write:barcodes', 'read:products', 'write:products', 'read:subscription'];
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3042' : '';
+const API_BASE = ''; // same-origin; Vite dev proxy forwards /api to the dev API server
 
 // ── Generate key modal ────────────────────────────────────────────────────────
 function GenerateKeyModal({ token, onClose, onCreated }) {

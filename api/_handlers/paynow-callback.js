@@ -1,11 +1,12 @@
 ﻿/**
  * POST /api/paynow/callback
  * Paynow POSTs URL-encoded payment status updates here.
- * Set PAYNOW_RESULT_URL=https://YOUR-SITE.netlify.app/api/paynow/callback
+ * Set PAYNOW_RESULT_URL=https://www.scancode.co.zw/api/paynow/callback
  */
 
 import { verifyCallback } from '../_utils/paynow.js';
 import { supabaseAdmin }  from '../_utils/supabase-admin.js';
+import { notify }         from '../_utils/notify.js';
 
 export default async (req) => {
   if (req.method !== 'POST') return new Response('OK', { status: 200 });
@@ -62,6 +63,7 @@ async function activateFromReference(reference, status, amount, paynowRef) {
   await supabaseAdmin.from('profiles').update(update).eq('id', payment.user_id);
 
   console.log(`[Paynow callback] Activated ${payment.plan} for user ${payment.user_id}${isLifetime ? ' (lifetime)' : ''}`);
+  await notify(payment.user_id, 'Payment received', `Your ${payment.plan} plan is now active. Thank you!`, 'success');
 }
 
 export const config = { path: '/api/paynow/callback' };

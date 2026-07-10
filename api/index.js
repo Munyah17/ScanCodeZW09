@@ -32,6 +32,9 @@ import devUsage from "./_handlers/dev-usage.js";
 import devWallet from "./_handlers/dev-wallet.js";
 import health from "./_handlers/health.js";
 import keysGenerate from "./_handlers/keys-generate.js";
+import notificationsDelete from "./_handlers/notifications-delete.js";
+import notificationsList from "./_handlers/notifications-list.js";
+import notificationsMarkRead from "./_handlers/notifications-mark-read.js";
 import keysList from "./_handlers/keys-list.js";
 import keysRevoke from "./_handlers/keys-revoke.js";
 import paymentsStatus from "./_handlers/payments-status.js";
@@ -87,6 +90,9 @@ const routes = {
   "/api/dev/wallet": devWallet,
   "/api/health": health,
   "/api/keys/generate": keysGenerate,
+  "/api/notifications/delete": notificationsDelete,
+  "/api/notifications/list": notificationsList,
+  "/api/notifications/mark-read": notificationsMarkRead,
   "/api/keys/list": keysList,
   "/api/keys/revoke": keysRevoke,
   "/api/payments/status": paymentsStatus,

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DevPortalLayout from './DevPortalLayout';
 
-const API     = import.meta.env.DEV ? 'http://localhost:3042' : '';
+const API     = ''; // same-origin; Vite dev proxy forwards /api to the dev API server
 const AMOUNTS = [5, 10, 25, 50, 100, 250];
 
 function TxnRow({ t }) {
