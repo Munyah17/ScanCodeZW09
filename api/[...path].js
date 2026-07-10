@@ -116,11 +116,76 @@ const routes = {
   "/api/v1/qr/generate": v1QrGenerate,
 };
 
-export default async function handler(req) {
-  const { pathname } = new URL(req.url);
-  const fn = routes[pathname];
-  if (!fn) return j({ error: 'Not found' }, 404);
-  return fn(req);
+// ── Node → Web adapter ────────────────────────────────────────────────────────
+// Vercel's Node.js runtime invokes this function with Node's (req, res) pair,
+// but every handler in _handlers/ is written against the Web standard
+// (Request in, Response out). This shim bridges the two at the single dispatch
+// point so the handlers stay platform-neutral.
+//
+// NOTE: the project sets NODEJS_HELPERS=0 on Vercel so the request stream is
+// not pre-consumed — required for Stripe webhook raw-body signature checks.
+// readRawBody still falls back to a pre-parsed req.body if helpers are on.
+
+function toWebHeaders(raw) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) value.forEach((v) => headers.append(key, v));
+    else headers.set(key, value);
+  }
+  return headers;
+}
+
+async function readRawBody(req) {
+  // Vercel helpers (if enabled) consume the stream and expose req.body instead.
+  if (req.body !== undefined || req.readableEnded) {
+    const b = req.body;
+    if (b === undefined || b === null) return null;
+    if (Buffer.isBuffer(b)) return b;
+    if (typeof b === 'string') return Buffer.from(b);
+    return Buffer.from(JSON.stringify(b));
+  }
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  return chunks.length ? Buffer.concat(chunks) : null;
+}
+
+async function sendResponse(res, response) {
+  res.statusCode = response.status;
+  response.headers.forEach((value, key) => res.setHeader(key, value));
+  const buf = Buffer.from(await response.arrayBuffer());
+  res.end(buf);
+}
+
+export default async function handler(req, res) {
+  try {
+    const proto = req.headers['x-forwarded-proto'] ?? 'https';
+    const host  = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost';
+    const url   = new URL(req.url, `${proto}://${host}`);
+    url.searchParams.delete('...path'); // Vercel injects the catch-all segment as a query param
+
+    const fn = routes[url.pathname.replace(/\/+$/, '') || '/'];
+    if (!fn) return sendResponse(res, j({ error: 'Not found' }, 404));
+
+    const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+    const body    = hasBody ? await readRawBody(req) : null;
+
+    const request = new Request(url, {
+      method:  req.method,
+      headers: toWebHeaders(req.headers),
+      body:    body && body.length ? body : undefined,
+    });
+
+    const response = await fn(request);
+    await sendResponse(res, response);
+  } catch (err) {
+    console.error('[api] Unhandled error:', err);
+    if (!res.headersSent) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+    }
+    res.end(JSON.stringify({ error: 'Internal server error' }));
+  }
 }
 
 export const config = { maxDuration: 30 };
