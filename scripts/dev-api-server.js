@@ -25,7 +25,7 @@ const diag = {
 };
 console.log('[dev-api] Environment loaded:', diag);
 
-const { default: handler } = await import('../api/[...path].js');
+const { default: handler } = await import('../api/index.js');
 
 const PORT = Number(process.env.DEV_API_PORT) || 3042;
 

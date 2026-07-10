@@ -4,6 +4,9 @@
 // 50+ API endpoints, so they live as plain modules under api/_handlers/ (a leading
 // underscore keeps Vercel from treating them as functions) and are dispatched here
 // by exact pathname — one function total instead of one per endpoint.
+//
+// Routing: vercel.json rewrites /api/:path* to this function (a bracketed
+// [...path].js catch-all only matched single-segment paths in production).
 import { j } from './_utils/response.js';
 
 import adminAllApiKeys from "./_handlers/admin-all-api-keys.js";
@@ -162,9 +165,19 @@ export default async function handler(req, res) {
     const proto = req.headers['x-forwarded-proto'] ?? 'https';
     const host  = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost';
     const url   = new URL(req.url, `${proto}://${host}`);
-    url.searchParams.delete('...path'); // Vercel injects the catch-all segment as a query param
 
-    const fn = routes[url.pathname.replace(/\/+$/, '') || '/'];
+    let pathname = url.pathname.replace(/\/+$/, '') || '/';
+    // Depending on how the /api/:path* rewrite is applied, Vercel may pass the
+    // original pathname through (normal case) or land on the function's own
+    // path with the matched segments in a `path` query param — support both.
+    const pathParam = url.searchParams.get('path');
+    if ((pathname === '/api' || pathname === '/api/index') && pathParam) {
+      pathname = '/api/' + pathParam.replace(/^\/+/, '');
+    }
+    url.searchParams.delete('path');
+    url.searchParams.delete('...path'); // legacy catch-all param, harmless to strip
+
+    const fn = routes[pathname];
     if (!fn) return sendResponse(res, j({ error: 'Not found' }, 404));
 
     const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
