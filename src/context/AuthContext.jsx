@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
@@ -6,17 +6,25 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef(null);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   // ── Build the app user object from a Supabase session ──────────────────────
   const hydrateUser = useCallback(async (session) => {
     let profile = null;
-    try {
-      const res = await fetch('/api/profile/me', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      const body = await res.json().catch(() => ({}));
-      if (res.ok) profile = body.profile;
-    } catch { /* network error — fall back to session defaults */ }
+    // Two attempts: a single transient failure here would silently demote an
+    // admin to the client dashboard (role falls back to 'user').
+    for (let attempt = 0; attempt < 2 && !profile; attempt++) {
+      try {
+        const res = await fetch('/api/profile/me', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) profile = body.profile;
+        else if (res.status === 401) break; // token problem — retrying won't help
+      } catch { /* network error — retry once, then fall back to session defaults */ }
+      if (!profile && attempt === 0) await new Promise(r => setTimeout(r, 800));
+    }
 
     const userType = profile?.user_type ?? 'user';
     const elevated = ['super_admin','admin','technical_support','clerk','assistant','finance'];
@@ -52,9 +60,15 @@ export function AuthProvider({ children }) {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) hydrateUser(session);
-      else { setUser(null); setLoading(false); }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) { setUser(null); setLoading(false); return; }
+      // Supabase refreshes the JWT roughly every 50 minutes. The profile
+      // hasn't changed — just swap the token instead of re-fetching.
+      if (event === 'TOKEN_REFRESHED' && userRef.current) {
+        setUser(prev => (prev ? { ...prev, accessToken: session.access_token } : prev));
+        return;
+      }
+      hydrateUser(session);
     });
 
     return () => subscription.unsubscribe();
