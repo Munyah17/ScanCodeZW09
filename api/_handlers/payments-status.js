@@ -1,13 +1,19 @@
-﻿/**
+/**
  * GET /api/payments/status?reference=REF
  *
- * No auth required â€” the reference itself is the unforgeable token issued
+ * No auth required — the reference itself is the unforgeable token issued
  * by the backend at checkout initiation. Returns only non-sensitive status
  * fields so the PaymentReturn page can show the right UI.
+ *
+ * For a still-pending Paynow payment, this actively polls Paynow's poll URL
+ * (the integration-ID/key confirmation mechanism) rather than only waiting
+ * on the passive result-URL webhook, which can be delayed or dropped.
  */
 
-import { supabaseAdmin } from '../_utils/supabase-admin.js';
-import { j }             from '../_utils/response.js';
+import { supabaseAdmin }         from '../_utils/supabase-admin.js';
+import { j }                     from '../_utils/response.js';
+import { pollPaynowStatus }      from '../_utils/paynow-poll.js';
+import { activatePaynowPayment } from '../_utils/activate-payment.js';
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
@@ -19,7 +25,7 @@ export default async (req) => {
 
   const { data, error } = await supabaseAdmin
     .from('payments')
-    .select('status, plan, method')
+    .select('status, plan, method, paynow_poll_url')
     .eq('reference', reference)
     .single();
 
@@ -30,6 +36,22 @@ export default async (req) => {
   if (error) {
     console.error('[payments/status] DB error:', error.message);
     return j({ error: 'Internal server error.' }, 500);
+  }
+
+  if (data.status === 'pending' && data.method === 'paynow' && data.paynow_poll_url) {
+    try {
+      const polled = await pollPaynowStatus(data.paynow_poll_url);
+      if (polled?.status === 'paid' || polled?.status === 'awaiting delivery') {
+        await activatePaynowPayment(reference, polled.amount, polled.paynowReference);
+        return j({ status: 'paid', plan: data.plan, method: data.method });
+      }
+      if (polled && ['cancelled', 'disputed', 'refunded'].includes(polled.status)) {
+        await supabaseAdmin.from('payments').update({ status: polled.status }).eq('reference', reference);
+        return j({ status: polled.status, plan: data.plan, method: data.method });
+      }
+    } catch (err) {
+      console.warn('[payments/status] Paynow poll failed, falling back to DB status:', err.message);
+    }
   }
 
   return j({ status: data.status, plan: data.plan, method: data.method });

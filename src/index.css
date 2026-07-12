@@ -1003,13 +1003,18 @@ a:hover { color: var(--accent-dark); }
   to { transform: rotate(360deg); }
 }
 
-/* Page Transitions */
+/* Page Transitions
+   NOTE: opacity-only, deliberately no transform. A `transform` here (even an
+   identity translateY(0)) makes this wrapper the containing block for any
+   position:fixed descendant per the CSS spec — which broke the dashboard
+   shell's fixed anchoring (.dp-root) on every single navigation, making the
+   whole sidebar/topbar visibly slide instead of staying put. */
 .page-transition-wrapper {
-  animation: pageFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: pageFadeIn 0.35s ease-out;
 }
 @keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* (scroll-behavior moved to html block above) */
@@ -1103,6 +1108,7 @@ a:hover { color: var(--accent-dark); }
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   overflow: hidden;
   position: fixed; inset: 0; z-index: 100;
+  overscroll-behavior: none; /* stop iOS rubber-band bounce from reaching the body underneath */
 }
 
 /* ─────────────────────────── Sidebar ───────────────────────────────────── */
@@ -1115,6 +1121,7 @@ a:hover { color: var(--accent-dark); }
   flex-direction: column;
   padding: 0.875rem 0.75rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Logo row */
@@ -1261,6 +1268,7 @@ a:hover { color: var(--accent-dark); }
   display: flex; flex-direction: column;
   gap: 1.25rem;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* ─────────────────────── Overview metric cards ──────────────────────────── */
