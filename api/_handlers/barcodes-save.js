@@ -14,6 +14,16 @@ const PLAN_DEFAULTS = {
   enterprise: { max_products: null, max_variations_per_product: null },
 };
 
+// Atomically spends one "Once in a While Use" generation credit, if the user
+// has any. Used as a fallback once a user's plan limit is reached, instead
+// of hard-blocking them.
+async function consumeOtgCredit(auth) {
+  if (!auth.profile?.otg_credits) return false;
+  const { data, error } = await supabaseAdmin.rpc('consume_otg_credit', { p_user_id: auth.userId });
+  if (error) { console.error('[barcodes/save] consume_otg_credit RPC error:', error.message); return false; }
+  return data === true;
+}
+
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 200 });
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -64,6 +74,7 @@ export default async (req) => {
 
     let productId = existing_product_id ? Number(existing_product_id) : null;
     let actualProductName = '';
+    let usedOtgCredit = false;
 
     if (!productId) {
       if (maxProducts !== null) {
@@ -72,7 +83,11 @@ export default async (req) => {
           .select('id', { count: 'exact', head: true })
           .eq('user_id', auth.userId);
         if ((prodCount ?? 0) >= maxProducts) {
-          return j({ error: 'Product limit reached for your plan. Please upgrade.' }, 400);
+          if (await consumeOtgCredit(auth)) {
+            usedOtgCredit = true;
+          } else {
+            return j({ error: 'Product limit reached for your plan. Upgrade, or buy a one-time generation pack.' }, 400);
+          }
         }
       }
 
@@ -101,7 +116,11 @@ export default async (req) => {
         .select('id', { count: 'exact', head: true })
         .eq('product_id', productId);
       if ((varCount ?? 0) >= maxVariations) {
-        return j({ error: 'Variation limit reached for this product. Please upgrade.' }, 400);
+        if (usedOtgCredit || await consumeOtgCredit(auth)) {
+          usedOtgCredit = true;
+        } else {
+          return j({ error: 'Variation limit reached for this product. Upgrade, or buy a one-time generation pack.' }, 400);
+        }
       }
     }
 

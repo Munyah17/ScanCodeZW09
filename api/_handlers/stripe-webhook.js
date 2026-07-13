@@ -15,6 +15,7 @@ import Stripe from 'stripe';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
 import { j }             from '../_utils/response.js';
 import { notify }        from '../_utils/notify.js';
+import { getPlan }       from '../_utils/get-plan.js';
 
 export default async (req) => {
   if (req.method !== 'POST') return j({ error: 'Method not allowed' }, 405);
@@ -163,6 +164,19 @@ async function upsertPayment({ reference, userId, plan, session, method, status,
 }
 
 async function activateSubscription({ userId, plan }) {
+  const planRow = await getPlan(plan);
+
+  // One-time "Once in a While Use" packs top up a generation credit balance —
+  // they must never overwrite the user's actual subscription_type/plan.
+  if (planRow?.billing_type === 'one_time' && planRow.otg_credits) {
+    const { data: profile } = await supabaseAdmin.from('profiles').select('otg_credits').eq('id', userId).single();
+    const newBalance = (profile?.otg_credits ?? 0) + planRow.otg_credits;
+    await supabaseAdmin.from('profiles').update({ otg_credits: newBalance }).eq('id', userId);
+    console.log(`[Stripe webhook] Credited ${planRow.otg_credits} OTG generations to user ${userId} (balance: ${newBalance})`);
+    await notify(userId, 'Payment received', `${planRow.otg_credits} barcode generation${planRow.otg_credits > 1 ? 's' : ''} added to your account. Thank you!`, 'success');
+    return;
+  }
+
   const isLifetime = plan === 'lifetime';
   const update     = { subscription_type: plan };
 

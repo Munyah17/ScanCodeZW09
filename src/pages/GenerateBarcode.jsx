@@ -24,6 +24,7 @@ const EMPTY_FORM = {
 };
 
 const PLAN_LIMITS = {
+  free:       { max_products: 1,    max_variations_per_product: 1   },
   starter:    { max_products: 3,    max_variations_per_product: 3   },
   business:   { max_products: 20,   max_variations_per_product: 15  },
   pro:        { max_products: 100,  max_variations_per_product: 50  },
@@ -290,7 +291,10 @@ export default function GenerateBarcode() {
   );
 
   const activePlan = user?.subscription_type;
-  const hasAccess  = user?.isSuperAdmin || isAdmin || (activePlan && activePlan !== 'free' && PLAN_LIMITS[activePlan] !== undefined);
+  // Every signed-up user has at least the free tier (1 product / 1 variation)
+  // or a paid plan or purchased one-time generation credits — all of those
+  // are valid ways to reach this page. There is no "no access" state anymore.
+  const hasAccess  = user?.isSuperAdmin || isAdmin || !!activePlan || (user?.otg_credits > 0);
   if (!hasAccess) return (
     <DashLayout active="generate" title="Generate Barcode">
       <div className="dp-section" style={{ textAlign: 'center', padding: '4rem 1rem' }}>

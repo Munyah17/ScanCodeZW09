@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
       subscription_type:     profile?.subscription_type ?? 'free',
       subscription_end_date: profile?.subscription_end_date ?? null,
       enterprise_config:     profile?.enterprise_config ?? null,
+      otg_credits:           profile?.otg_credits ?? 0,
       user_type:             userType,
       // ── Role flags ─────────────────────────────────────────────────────────
       isSuperAdmin:          userType === 'super_admin',

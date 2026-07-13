@@ -1,4 +1,4 @@
-﻿import { requireAdmin }  from '../_utils/require-admin.js';
+import { requireAdmin }  from '../_utils/require-admin.js';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
 import { j }             from '../_utils/response.js';
 
@@ -12,7 +12,7 @@ export default async (req) => {
     const { data, error: dbErr } = await supabaseAdmin
       .from('subscription_plans')
       .select('*')
-      .order('price_usd', { ascending: true, nullsLast: true });
+      .order('sort_order', { ascending: true, nullsLast: true });
 
     if (dbErr) return j({ error: 'Internal server error.' }, 500);
     return j(data);
@@ -21,7 +21,10 @@ export default async (req) => {
   if (req.method === 'PUT') {
     let body;
     try { body = await req.json(); } catch { body = {}; }
-    const { id, name, price_usd, max_products, max_variations_per_product, features, active } = body;
+    const {
+      id, name, price_usd, max_products, max_variations_per_product,
+      features, active, billing_type, otg_credits,
+    } = body;
 
     if (!id) return j({ error: 'Plan id is required.' }, 400);
 
@@ -32,6 +35,8 @@ export default async (req) => {
     if (max_variations_per_product !== undefined) update.max_variations_per_product = max_variations_per_product;
     if (features                   !== undefined) update.features                   = features;
     if (active                     !== undefined) update.active                     = active;
+    if (billing_type               !== undefined) update.billing_type               = billing_type;
+    if (otg_credits                !== undefined) update.otg_credits                = otg_credits;
 
     const { error: dbErr } = await supabaseAdmin.from('subscription_plans').update(update).eq('id', id);
     if (dbErr) return j({ error: 'Internal server error.' }, 500);

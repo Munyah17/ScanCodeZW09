@@ -2,23 +2,7 @@ import { Paynow } from 'paynow';
 import { requireAuth }   from '../_utils/require-auth.js';
 import { j }             from '../_utils/response.js';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
-
-const PLAN_AMOUNTS = {
-  starter:    5.90,
-  business:   16.90,
-  pro:        29.90,
-  lifetime:   129.99,
-  otg_single: 10.00,
-  otg_triple: 20.00,
-};
-const PLAN_LABELS  = {
-  starter:    'ScanCodeZW Starter Plan',
-  business:   'ScanCodeZW Business Plan',
-  pro:        'ScanCodeZW Pro Plan',
-  lifetime:   'ScanCodeZW Lifetime Access',
-  otg_single: 'ScanCodeZW – 1 Barcode Generation',
-  otg_triple: 'ScanCodeZW – 3 Barcode Generations',
-};
+import { getPlan }       from '../_utils/get-plan.js';
 
 export default async (req) => {
   try {
@@ -40,7 +24,13 @@ export default async (req) => {
 
     const { plan, reference: clientRef } = body;
 
-    if (!plan || !PLAN_AMOUNTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
+    // Price comes from subscription_plans — the Super Admin Pricing page
+    // edits that table, so this is what actually gets charged.
+    const planRow = plan ? await getPlan(plan) : null;
+    if (!planRow) return j({ error: `Invalid plan: "${plan}"` }, 400);
+
+    const amountUsd = parseFloat(planRow.price_usd);
+    const planLabel = `ScanCodeZW ${planRow.name}`;
 
     const userId    = auth.userId;
     const email     = auth.email ?? '';
@@ -54,7 +44,7 @@ export default async (req) => {
       reference,
       user_id:    userId,
       plan,
-      amount_usd: PLAN_AMOUNTS[plan],
+      amount_usd: amountUsd,
       method:     'paynow',
       status:     'pending',
     });
@@ -64,7 +54,7 @@ export default async (req) => {
     paynow.returnUrl = returnUrl;
 
     const payment = paynow.createPayment(reference, email);
-    payment.add(PLAN_LABELS[plan], PLAN_AMOUNTS[plan]);
+    payment.add(planLabel, amountUsd);
 
     const result = await paynow.send(payment);
 

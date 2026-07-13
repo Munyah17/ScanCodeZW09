@@ -11,7 +11,7 @@ export default async (req) => {
 
   const { data, error: dbErr } = await supabaseAdmin
     .from('profiles')
-    .select('username, subscription_type, subscription_end_date, enterprise_config, user_type')
+    .select('username, subscription_type, subscription_end_date, enterprise_config, user_type, otg_credits')
     .eq('id', auth.userId)
     .single();
 

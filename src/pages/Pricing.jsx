@@ -131,13 +131,13 @@ export default function Pricing() {
             ))}
           </div>
 
-          {/* ── One-Time Generation ── */}
+          {/* ── Once in a While Use ── */}
           <div style={{ marginTop: '3rem' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '0.4rem' }}>One-Time Generation</h2>
+            <h2 style={{ textAlign: 'center', marginBottom: '0.4rem' }}>Once in a While Use</h2>
             <p className="section-subtitle" style={{ marginBottom: '1.5rem' }}>
-              No subscription needed. Pay per generation — your credits are approved instantly.
+              No subscription needed. For businesses that only need a barcode here and there — pay per generation, credits are applied instantly and never expire.
             </p>
-            <div className="extra-plans-grid">
+            <div className="extra-plans-grid extra-plans-grid-3">
               <div className="extra-plan-card" style={{ background: 'linear-gradient(145deg, #1e293b, #162032)', borderColor: '#38bdf8' }}>
                 <div className="extra-plan-icon" style={{ color: '#38bdf8' }}><i className="fas fa-barcode"></i></div>
                 <h3>Single Generation</h3>
@@ -171,6 +171,24 @@ export default function Pricing() {
                 </ul>
                 <button className="btn btn-block btn-primary" style={{ marginTop: 'auto' }} onClick={() => go('otg_triple')}>
                   Buy 3 Barcodes — $20
+                </button>
+              </div>
+
+              <div className="extra-plan-card" style={{ background: 'linear-gradient(145deg, #1e293b, #241a30)', borderColor: '#c4b5fd' }}>
+                <div className="extra-plan-icon" style={{ color: '#c4b5fd' }}><i className="fas fa-boxes-stacked"></i></div>
+                <h3>Bundle — 10 Barcodes</h3>
+                <p className="extra-plan-tag" style={{ background: 'rgba(196,181,253,0.15)', color: '#c4b5fd' }}>Biggest Savings</p>
+                <div className="extra-plan-price">$50.00 <span>/ 10 barcodes</span></div>
+                <p className="extra-plan-desc">Generate ten unique barcodes in one payment. Ideal for a seasonal batch of new products. Save $50 compared to buying individually.</p>
+                <ul className="extra-plan-features">
+                  <li><i className="fas fa-check"></i> 10 barcode generations</li>
+                  <li><i className="fas fa-check"></i> All formats (EAN-13, UPC-A, QR)</li>
+                  <li><i className="fas fa-check"></i> PNG at 38mm / 300 DPI each</li>
+                  <li><i className="fas fa-check"></i> Save $50 vs buying separately</li>
+                  <li><i className="fas fa-check"></i> Credits never expire</li>
+                </ul>
+                <button className="btn btn-block" style={{ marginTop: 'auto', background: '#8b5cf6', color: '#fff', border: 'none' }} onClick={() => go('otg_ten')}>
+                  Buy 10 Barcodes — $50
                 </button>
               </div>
             </div>

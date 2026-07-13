@@ -1870,6 +1870,9 @@ a:hover { color: var(--accent-dark); }
   gap: 1.5rem;
   margin-top: 2.5rem;
 }
+.extra-plans-grid-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px) { .extra-plans-grid-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .extra-plans-grid-3 { grid-template-columns: 1fr; } }
 .extra-plan-card {
   background: #1e293b;
   border: 1px solid #334155;

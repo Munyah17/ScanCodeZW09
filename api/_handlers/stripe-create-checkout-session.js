@@ -2,24 +2,7 @@ import Stripe from 'stripe';
 import { requireAuth }   from '../_utils/require-auth.js';
 import { j }             from '../_utils/response.js';
 import { supabaseAdmin } from '../_utils/supabase-admin.js';
-
-const PLAN_AMOUNTS_CENTS = {
-  starter:    590,
-  business:   1690,
-  pro:        2990,
-  lifetime:   12999,
-  otg_single: 1000,
-  otg_triple: 2000,
-};
-const PLAN_NAMES = {
-  starter:    'ScanCodeZW Starter Plan',
-  business:   'ScanCodeZW Business Plan',
-  pro:        'ScanCodeZW Pro Plan',
-  lifetime:   'ScanCodeZW Lifetime Access',
-  otg_single: 'ScanCodeZW – 1 Barcode Generation',
-  otg_triple: 'ScanCodeZW – 3 Barcode Generations',
-};
-const ONE_TIME_PLANS = new Set(['lifetime', 'otg_single', 'otg_triple']);
+import { getPlan }       from '../_utils/get-plan.js';
 
 export default async (req) => {
   try {
@@ -37,7 +20,14 @@ export default async (req) => {
     try { body = await req.json(); } catch { body = {}; }
     const { plan, reference: clientRef } = body;
 
-    if (!plan || !PLAN_AMOUNTS_CENTS[plan]) return j({ error: `Invalid plan: "${plan}"` }, 400);
+    // Price and billing type come from subscription_plans — the Super Admin
+    // Pricing page edits that table, so this is what actually gets charged.
+    const planRow = plan ? await getPlan(plan) : null;
+    if (!planRow) return j({ error: `Invalid plan: "${plan}"` }, 400);
+
+    const amountCents = Math.round(parseFloat(planRow.price_usd) * 100);
+    const planName    = `ScanCodeZW ${planRow.name}`;
+    const isOneTime   = planRow.billing_type === 'one_time' || plan === 'lifetime';
 
     const userId    = auth.userId;
     const email     = auth.profile?.email ?? auth.email ?? '';
@@ -45,7 +35,6 @@ export default async (req) => {
     const appUrl    = process.env.APP_URL ?? 'https://www.scancode.co.zw';
     const successUrl = `${process.env.STRIPE_SUCCESS_URL ?? `${appUrl}/payment/return`}?reference=${encodeURIComponent(reference)}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl  = `${process.env.STRIPE_CANCEL_URL ?? `${appUrl}/payment/cancel`}?plan=${encodeURIComponent(plan)}`;
-    const isOneTime  = ONE_TIME_PLANS.has(plan);
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
 
@@ -54,7 +43,7 @@ export default async (req) => {
       reference,
       user_id:    userId,
       plan,
-      amount_usd: PLAN_AMOUNTS_CENTS[plan] / 100,
+      amount_usd: amountCents / 100,
       method:     'stripe',
       status:     'pending',
     });
@@ -93,8 +82,8 @@ export default async (req) => {
       sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
-          unit_amount:  PLAN_AMOUNTS_CENTS[plan],
-          product_data: { name: PLAN_NAMES[plan] },
+          unit_amount:  amountCents,
+          product_data: { name: planName },
         },
         quantity: 1,
       }];
@@ -103,8 +92,8 @@ export default async (req) => {
       sessionParams.line_items = [{
         price_data: {
           currency:     'usd',
-          unit_amount:  PLAN_AMOUNTS_CENTS[plan],
-          product_data: { name: PLAN_NAMES[plan] },
+          unit_amount:  amountCents,
+          product_data: { name: planName },
           recurring:    { interval: 'month' },
         },
         quantity: 1,

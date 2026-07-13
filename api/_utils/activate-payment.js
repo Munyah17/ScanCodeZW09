@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabase-admin.js';
 import { notify }        from './notify.js';
+import { getPlan }       from './get-plan.js';
 
 /**
  * Shared by the Paynow result-URL webhook AND the active poll-URL fallback
@@ -21,6 +22,19 @@ export async function activatePaynowPayment(reference, amount, paynowRef) {
     amount_usd: parseFloat(amount) || payment.amount_usd,
     paid_at:    new Date().toISOString(),
   }).eq('reference', reference);
+
+  const planRow = await getPlan(payment.plan);
+
+  // One-time "Once in a While Use" packs top up a generation credit balance —
+  // they must never overwrite the user's actual subscription_type/plan.
+  if (planRow?.billing_type === 'one_time' && planRow.otg_credits) {
+    const { data: profile } = await supabaseAdmin.from('profiles').select('otg_credits').eq('id', payment.user_id).single();
+    const newBalance = (profile?.otg_credits ?? 0) + planRow.otg_credits;
+    await supabaseAdmin.from('profiles').update({ otg_credits: newBalance }).eq('id', payment.user_id);
+    console.log(`[Paynow] Credited ${planRow.otg_credits} OTG generations to user ${payment.user_id} (balance: ${newBalance})`);
+    await notify(payment.user_id, 'Payment received', `${planRow.otg_credits} barcode generation${planRow.otg_credits > 1 ? 's' : ''} added to your account. Thank you!`, 'success');
+    return;
+  }
 
   const isLifetime = payment.plan === 'lifetime';
   const update = { subscription_type: payment.plan };
