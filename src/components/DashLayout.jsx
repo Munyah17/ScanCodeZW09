@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -123,6 +123,25 @@ const Ic = {
       <circle cx="4" cy="3" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
       <circle cx="9" cy="7" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
       <circle cx="5" cy="11" r="1.5" fill="#0c0c0c" stroke="currentColor" strokeWidth="1.2"/>
+    </svg>
+  ),
+  bell: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M3 6a4.5 4.5 0 0 1 9 0v2.5l1.2 2.2a.6.6 0 0 1-.53.9H2.33a.6.6 0 0 1-.53-.9L3 8.5V6Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M6 13.2a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  ),
+  logout: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M6.5 1.5H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M10 4.5 13.5 7.5 10 10.5M13 7.5H5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  externalHome: () => (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M1 7 7 1.5 13 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 6v6h8V6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9.5 2.2V1h2.3v2.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
 };
@@ -341,6 +360,9 @@ function DashSidebar({ active, isOpen, onClose }) {
         <Link to="/features" className="dp-footer-link" onClick={handleNavClick}>
           <Ic.docs /><span>Documentation</span>
         </Link>
+        <Link to="/" className="dp-footer-link dp-footer-link-site" onClick={handleNavClick}>
+          <Ic.externalHome /><span>Back to Site</span>
+        </Link>
       </div>
 
       {/* User block */}
@@ -356,22 +378,93 @@ function DashSidebar({ active, isOpen, onClose }) {
   );
 }
 
+// ── Avatar dropdown (top-right of every dashboard) ────────────────────────────
+function AvatarMenu() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onEscape = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  const initials = (user?.username ?? '?').charAt(0).toUpperCase();
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await logout();
+    navigate('/login');
+  };
+
+  const item = (to, Icon, label) => (
+    <Link to={to} className="dp-avatar-item" onClick={() => setOpen(false)}>
+      <Icon /><span>{label}</span>
+    </Link>
+  );
+
+  return (
+    <div className="dp-avatar-menu" ref={rootRef}>
+      <button
+        className="dp-avatar-btn"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-label="Account menu"
+      >
+        <span className="dp-avatar-circle">{initials}</span>
+        <span className="dp-avatar-chevron"><Ic.chevron /></span>
+      </button>
+      {open && (
+        <div className="dp-avatar-dropdown">
+          <div className="dp-avatar-dropdown-header">
+            <strong>{user?.username ?? '—'}</strong>
+            <small>{user?.email ?? ''}</small>
+          </div>
+          <div className="dp-avatar-dropdown-divider" />
+          {item('/profile',       Ic.customers, 'Profile')}
+          {item('/notifications', Ic.bell,      'Notifications')}
+          {item('/settings',      Ic.settings,  'Settings')}
+          <div className="dp-avatar-dropdown-divider" />
+          <button className="dp-avatar-item dp-avatar-logout" onClick={handleLogout}>
+            <Ic.logout /><span>Logout</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Top bar ───────────────────────────────────────────────────────────────────
 function DashTopBar({ title, actions, onMenuToggle, menuOpen }) {
   return (
     <div className="dp-topbar">
-      {/* Hamburger — visible only on mobile via CSS */}
-      <button
-        className="dp-mobile-hamburger"
-        onClick={onMenuToggle}
-        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-      >
-        <HamburgerIcon open={menuOpen} />
-      </button>
+      <div className="dp-topbar-left">
+        {/* Hamburger — visible only on mobile via CSS */}
+        <button
+          className="dp-mobile-hamburger"
+          onClick={onMenuToggle}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        >
+          <HamburgerIcon open={menuOpen} />
+        </button>
 
-      <h1 className="dp-title">{title}</h1>
+        <h1 className="dp-title">{title}</h1>
+      </div>
 
-      {actions && <div className="dp-topbar-actions">{actions}</div>}
+      <div className="dp-topbar-right">
+        {actions && <div className="dp-topbar-actions">{actions}</div>}
+        <AvatarMenu />
+      </div>
     </div>
   );
 }

@@ -1235,8 +1235,52 @@ a:hover { color: var(--accent-dark); }
   padding: 1.125rem 1.875rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
   flex-shrink: 0;
+  gap: 1rem;
 }
+.dp-topbar-left  { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; }
+.dp-topbar-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
 .dp-title { font-size: 1.25rem; font-weight: 600; color: #f0f0f0; margin: 0; letter-spacing: -0.01em; }
+
+/* ── Avatar dropdown (top-right of every dashboard) ─────────────────────── */
+.dp-avatar-menu { position: relative; flex-shrink: 0; }
+.dp-avatar-btn {
+  display: flex; align-items: center; gap: 0.35rem;
+  background: none; border: none; padding: 0.2rem; border-radius: 99px;
+  cursor: pointer; transition: background 0.12s;
+}
+.dp-avatar-btn:hover { background: rgba(255,255,255,0.06); }
+.dp-avatar-circle {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%);
+  color: #fff; font-size: 0.8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.dp-avatar-chevron { color: #6b7280; display: flex; }
+.dp-avatar-dropdown {
+  position: absolute; top: calc(100% + 0.5rem); right: 0;
+  min-width: 220px;
+  background: #14161a;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  padding: 0.4rem;
+  z-index: 30;
+}
+.dp-avatar-dropdown-header { padding: 0.5rem 0.6rem 0.6rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.dp-avatar-dropdown-header strong { font-size: 0.85rem; color: #f0f0f0; }
+.dp-avatar-dropdown-header small { font-size: 0.75rem; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-avatar-dropdown-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0.3rem 0; }
+.dp-avatar-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%; padding: 0.5rem 0.6rem;
+  border-radius: 7px; border: none; background: none;
+  color: #d1d5db; font-size: 0.85rem; text-decoration: none;
+  cursor: pointer; text-align: left; font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.dp-avatar-item:hover { background: rgba(255,255,255,0.06); color: #f0f0f0; }
+.dp-avatar-logout { color: #f87171; }
+.dp-avatar-logout:hover { background: rgba(248,113,113,0.1); color: #f87171; }
 
 /* Filter bar */
 .dp-filters { display: flex; align-items: center; gap: 0.2rem; }
