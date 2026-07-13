@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DashLayout from '../components/DashLayout';
+import ExportButtons from '../components/ExportButtons';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -159,6 +160,16 @@ function UsersTab({ token, isSuperAdmin, clientsOnly }) {
           {['starter','business','pro','enterprise','lifetime'].map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         <span className="dp-filterbar-count">{filtered.length} account{filtered.length !== 1 ? 's' : ''}</span>
+        <div style={{ marginLeft: 'auto' }}>
+          <ExportButtons
+            filename="users"
+            title="Users"
+            headers={isSuperAdmin ? ['Username', 'Plan', 'Role', 'Subscription Expires', 'Joined'] : ['Username', 'Plan', 'Subscription Expires', 'Joined']}
+            rows={filtered.map(u => isSuperAdmin
+              ? [u.username, u.subscription_type ?? 'none', u.user_type, u.subscription_end_date ? fmtDate(u.subscription_end_date) : '', fmtDate(u.created_at)]
+              : [u.username, u.subscription_type ?? 'none', u.subscription_end_date ? fmtDate(u.subscription_end_date) : '', fmtDate(u.created_at)])}
+          />
+        </div>
       </div>
 
       {msg && <div className="dp-alert dp-alert-success" onClick={() => setMsg('')} style={{ cursor: 'pointer' }}>{msg} ✕</div>}
@@ -337,9 +348,17 @@ function StaffTab({ token }) {
       <div className="dp-section">
         <div className="dp-section-header">
           <p className="dp-section-title">Staff Accounts ({staff.length})</p>
-          <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={() => setShowAdd(v => !v)}>
-            {showAdd ? 'Cancel' : '+ Add Staff'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <ExportButtons
+              filename="staff"
+              title="Staff Accounts"
+              headers={['Username', 'Role', 'Joined']}
+              rows={staff.map(s => [s.username, s.user_type, fmtDate(s.created_at)])}
+            />
+            <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={() => setShowAdd(v => !v)}>
+              {showAdd ? 'Cancel' : '+ Add Staff'}
+            </button>
+          </div>
         </div>
 
         {showAdd && (
@@ -526,7 +545,15 @@ function RevenueTab({ token }) {
         <div className="dp-stat"><div className="dp-stat-label">Pending</div><div className="dp-stat-value">{pending.length}</div></div>
       </div>
       <div className="dp-section">
-        <div className="dp-section-header"><p className="dp-section-title">All Transactions</p></div>
+        <div className="dp-section-header">
+          <p className="dp-section-title">All Transactions</p>
+          <ExportButtons
+            filename="transactions"
+            title="All Transactions"
+            headers={['Reference', 'Plan', 'Amount', 'Method', 'Status', 'Date']}
+            rows={payments.map(p => [p.reference, p.plan, fmtMoney(p.amount_usd), p.method, p.status, fmtDate(p.created_at)])}
+          />
+        </div>
         {loading ? (
           <div className="dp-loading"><div className="dp-spinner" /></div>
         ) : payments.length === 0 ? (
@@ -783,6 +810,14 @@ function ApiKeysTab({ token }) {
       <div className="dp-filterbar">
         <input className="dp-input" style={{ maxWidth: 240 }} placeholder="Search name, prefix, user…" value={search} onChange={e => setSearch(e.target.value)} />
         <span className="dp-filterbar-count">{filtered.length} key{filtered.length !== 1 ? 's' : ''}</span>
+        <div style={{ marginLeft: 'auto' }}>
+          <ExportButtons
+            filename="api-keys"
+            title="API Keys"
+            headers={['Name', 'Key Prefix', 'Owner', 'Requests', 'Last Used', 'Created']}
+            rows={filtered.map(k => [k.name, k.key_prefix, k.profiles?.username ?? '', k.request_count ?? 0, k.last_used_at ? fmtDate(k.last_used_at) : '', fmtDate(k.created_at)])}
+          />
+        </div>
       </div>
       <div className="dp-section">
         {loading ? (

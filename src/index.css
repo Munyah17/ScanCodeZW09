@@ -1282,6 +1282,28 @@ a:hover { color: var(--accent-dark); }
 .dp-avatar-logout { color: #f87171; }
 .dp-avatar-logout:hover { background: rgba(248,113,113,0.1); color: #f87171; }
 
+/* ── Export menu (CSV/PDF) — used on any page with a data table ─────────── */
+.dp-export-menu { position: relative; display: inline-block; }
+.dp-export-dropdown {
+  position: absolute; top: calc(100% + 0.4rem); right: 0;
+  min-width: 190px;
+  background: #14161a;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  padding: 0.4rem;
+  z-index: 30;
+}
+.dp-export-item {
+  display: flex; align-items: center; gap: 0.55rem;
+  width: 100%; padding: 0.5rem 0.6rem;
+  border-radius: 7px; border: none; background: none;
+  color: #d1d5db; font-size: 0.83rem;
+  cursor: pointer; text-align: left; font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.dp-export-item:hover { background: rgba(255,255,255,0.06); color: #f0f0f0; }
+
 /* Filter bar */
 .dp-filters { display: flex; align-items: center; gap: 0.2rem; }
 .dp-filter-btn {
