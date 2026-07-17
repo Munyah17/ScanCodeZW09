@@ -137,6 +137,29 @@ const Ic = {
       <path d="M10 4.5 13.5 7.5 10 10.5M13 7.5H5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  invoice: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M3 1.5h9v12l-1.8-1.1-1.8 1.1-1.8-1.1-1.8 1.1-1.8-1.1V1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <path d="M5 5h5M5 7.5h5M5 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  ),
+  tag: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M8.3 1.5H3a1 1 0 0 0-1 1v5.3a1 1 0 0 0 .3.7l6 6a1 1 0 0 0 1.4 0l4.3-4.3a1 1 0 0 0 0-1.4l-6-6a1 1 0 0 0-.7-.3Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      <circle cx="5" cy="5" r="1" fill="currentColor"/>
+    </svg>
+  ),
+  pulse: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M1 7.5h2.5l1.3-3.5 2 7 1.4-3.5H14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  chart: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M1.5 1.5v12h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M3.5 10.5 6 7l2 2 3.5-4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
   externalHome: () => (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M1 7 7 1.5 13 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -163,26 +186,35 @@ function buildNav(user) {
   // ── Super Admin ────────────────────────────────────────────────────────────
   if (user?.isSuperAdmin) {
     return [
-      { to: '/dashboard',            key: 'home',      Icon: Ic.home,      label: 'Overview'   },
-      { to: '/admin',                key: 'customers', Icon: Ic.customers, label: 'Users'      },
-      { to: '/admin?tab=staff',      key: 'staff',     Icon: Ic.team,      label: 'Staff'      },
-      { to: '/admin?tab=analytics',  key: 'analytics', Icon: Ic.analytics, label: 'Analytics'  },
-      { to: '/admin?tab=revenue',    key: 'sales',     Icon: Ic.sales,     label: 'Revenue'    },
-      { to: '/admin?tab=support',    key: 'support',   Icon: Ic.support,   label: 'Support'    },
-      { to: '/admin?tab=api-keys',   key: 'api',       Icon: Ic.key,       label: 'API Keys'   },
-      { to: '/admin?tab=plans',      key: 'settings',  Icon: Ic.settings,  label: 'Platform'   },
+      { to: '/dashboard',              key: 'home',            Icon: Ic.home,      label: 'Overview'       },
+      { to: '/admin',                  key: 'customers',       Icon: Ic.customers, label: 'Users'          },
+      { to: '/admin?tab=staff',        key: 'staff',           Icon: Ic.team,      label: 'Staff'          },
+      { to: '/admin?tab=client-access',key: 'client-access',   Icon: Ic.generate,  label: 'Client Access'  },
+      { to: '/admin?tab=analytics',    key: 'analytics',       Icon: Ic.analytics, label: 'Analytics'      },
+      { to: '/admin?tab=statistics',   key: 'statistics',      Icon: Ic.chart,     label: 'Statistics'     },
+      { to: '/admin?tab=reports',      key: 'reports',         Icon: Ic.docs,      label: 'Reports'        },
+      { to: '/admin?tab=revenue',      key: 'sales',           Icon: Ic.sales,     label: 'Revenue'        },
+      { to: '/admin?tab=accounting',   key: 'accounting',      Icon: Ic.finance,   label: 'Accounting'     },
+      { to: '/admin?tab=invoicing',    key: 'invoicing',       Icon: Ic.invoice,   label: 'Invoicing'      },
+      { to: '/admin?tab=pricing',      key: 'pricing',         Icon: Ic.tag,       label: 'Pricing'        },
+      { to: '/admin?tab=support',      key: 'support',         Icon: Ic.support,   label: 'Support'        },
+      { to: '/admin?tab=api-keys',     key: 'api',             Icon: Ic.key,       label: 'API Keys'       },
+      { to: '/admin?tab=configurations',key: 'configurations', Icon: Ic.sliders,   label: 'Configurations' },
+      { to: '/admin?tab=settings',     key: 'platform-settings', Icon: Ic.settings, label: 'Settings'      },
+      { to: '/admin?tab=system-health',key: 'system-health',   Icon: Ic.pulse,     label: 'System Health'  },
     ];
   }
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   if (user?.isAdmin) {
     return [
-      { to: '/dashboard',          key: 'home',      Icon: Ic.home,      label: 'Overview'   },
-      { to: '/admin',              key: 'customers', Icon: Ic.customers, label: 'Customers'  },
-      { to: '/admin?tab=support',  key: 'support',   Icon: Ic.support,   label: 'Support'    },
-      { to: '/admin?tab=analytics',key: 'analytics', Icon: Ic.analytics, label: 'Analytics'  },
-      { to: '/admin?tab=revenue',  key: 'sales',     Icon: Ic.sales,     label: 'Sales'      },
-      { to: '/settings',           key: 'settings',  Icon: Ic.settings,  label: 'Settings'   },
+      { to: '/dashboard',              key: 'home',          Icon: Ic.home,      label: 'Overview'      },
+      { to: '/admin',                  key: 'customers',     Icon: Ic.customers, label: 'Customers'     },
+      { to: '/admin?tab=client-access',key: 'client-access', Icon: Ic.generate,  label: 'Client Access' },
+      { to: '/admin?tab=support',      key: 'support',       Icon: Ic.support,   label: 'Support'       },
+      { to: '/admin?tab=analytics',    key: 'analytics',     Icon: Ic.analytics, label: 'Analytics'     },
+      { to: '/admin?tab=revenue',      key: 'sales',         Icon: Ic.sales,     label: 'Sales'         },
+      { to: '/settings',               key: 'settings',      Icon: Ic.settings,  label: 'Settings'      },
     ];
   }
 

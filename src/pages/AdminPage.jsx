@@ -675,26 +675,21 @@ function SupportTab({ token }) {
   );
 }
 
-// ── Tab: Plans ────────────────────────────────────────────────────────────────
-function PlansTab({ token }) {
-  const [plans,   setPlans]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editId,  setEditId]  = useState(null);
-  const [draft,   setDraft]   = useState({});
-  const [saving,  setSaving]  = useState(false);
-  const [msg,     setMsg]     = useState('');
+// ── Tab: Pricing ──────────────────────────────────────────────────────────────
+// Single source of truth for what customers are charged — editing a row here
+// changes the amount Stripe/Paynow checkout actually bills (see
+// api/_utils/get-plan.js), not just a display label.
+function PricingTable({ title, plans, loading, onSaved, token, showCredits }) {
+  const [editId, setEditId] = useState(null);
+  const [draft,  setDraft]  = useState({});
+  const [saving, setSaving] = useState(false);
+  const [msg,    setMsg]    = useState('');
 
-  const loadPlans = async () => {
-    setLoading(true);
-    const res  = await fetch('/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } });
-    const data = await res.json().catch(() => []);
-    setPlans(Array.isArray(data) ? data : []);
-    setLoading(false);
-  };
-
-  useEffect(() => { loadPlans(); }, []);
-
-  const startEdit = (p) => { setEditId(p.id); setDraft({ price_usd: p.price_usd, max_products: p.max_products, max_variations_per_product: p.max_variations_per_product, active: p.active }); };
+  const startEdit = (p) => setEditId(p.id) || setDraft({
+    price_usd: p.price_usd, max_products: p.max_products,
+    max_variations_per_product: p.max_variations_per_product,
+    active: p.active, otg_credits: p.otg_credits,
+  });
 
   const savePlan = async () => {
     setSaving(true);
@@ -706,64 +701,102 @@ function PlansTab({ token }) {
     const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) { setMsg(data.error || 'Failed to update plan.'); return; }
-    setMsg('Plan updated.'); setEditId(null); loadPlans();
+    setMsg('Plan updated — new checkouts will use this price immediately.');
+    setEditId(null); onSaved();
   };
 
   return (
-    <>
+    <div className="dp-section">
+      <div className="dp-section-header"><p className="dp-section-title">{title}</p></div>
       {msg && <div className="dp-alert dp-alert-success" onClick={() => setMsg('')} style={{ cursor: 'pointer' }}>{msg} ✕</div>}
-      <div className="dp-section">
-        <div className="dp-section-header"><p className="dp-section-title">Subscription Plans</p></div>
-        {loading ? (
-          <div className="dp-loading"><div className="dp-spinner" /></div>
-        ) : (
-          <div className="dp-table-wrap">
-            <table className="dp-table">
-              <thead>
-                <tr><th>Plan</th><th>Price/mo</th><th>Max Products</th><th>Max Variations</th><th>Status</th><th></th></tr>
-              </thead>
-              <tbody>
-                {plans.map(p => (
-                  <tr key={p.id}>
-                    <td style={{ color: '#f0f0f0', fontWeight: 600, textTransform: 'capitalize' }}>{p.name}</td>
+      {loading ? (
+        <div className="dp-loading"><div className="dp-spinner" /></div>
+      ) : (
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead>
+              <tr>
+                <th>Plan</th><th>Price</th>
+                {showCredits ? <th>Generations</th> : <><th>Max Products</th><th>Max Variations</th></>}
+                <th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map(p => (
+                <tr key={p.id}>
+                  <td style={{ color: '#f0f0f0', fontWeight: 600 }}>{p.name}</td>
+                  <td>
+                    {editId === p.id
+                      ? <input className="dp-input" type="number" step="0.01" style={{ maxWidth: 90, padding: '0.25rem 0.5rem' }} value={draft.price_usd ?? ''} onChange={e => setDraft({ ...draft, price_usd: e.target.value })} />
+                      : <span style={{ color: '#60a5fa', fontWeight: 600 }}>{p.price_usd ? `$${p.price_usd}` : 'Custom'}</span>}
+                  </td>
+                  {showCredits ? (
                     <td>
                       {editId === p.id
-                        ? <input className="dp-input" type="number" step="0.01" style={{ maxWidth: 90, padding: '0.25rem 0.5rem' }} value={draft.price_usd ?? ''} onChange={e => setDraft({ ...draft, price_usd: e.target.value })} />
-                        : <span style={{ color: '#60a5fa', fontWeight: 600 }}>{p.price_usd ? `$${p.price_usd}` : 'Custom'}</span>}
+                        ? <input className="dp-input" type="number" style={{ maxWidth: 80, padding: '0.25rem 0.5rem' }} value={draft.otg_credits ?? ''} onChange={e => setDraft({ ...draft, otg_credits: Number(e.target.value) || null })} />
+                        : p.otg_credits}
                     </td>
-                    <td>
-                      {editId === p.id
-                        ? <input className="dp-input" type="number" style={{ maxWidth: 80, padding: '0.25rem 0.5rem' }} value={draft.max_products ?? ''} onChange={e => setDraft({ ...draft, max_products: Number(e.target.value) || null })} />
-                        : (p.max_products ?? <span style={{ color: '#34d399' }}>Unlimited</span>)}
-                    </td>
-                    <td>
-                      {editId === p.id
-                        ? <input className="dp-input" type="number" style={{ maxWidth: 80, padding: '0.25rem 0.5rem' }} value={draft.max_variations_per_product ?? ''} onChange={e => setDraft({ ...draft, max_variations_per_product: Number(e.target.value) || null })} />
-                        : (p.max_variations_per_product ?? <span style={{ color: '#34d399' }}>Unlimited</span>)}
-                    </td>
-                    <td>
-                      {editId === p.id
-                        ? <select className="dp-select" style={{ maxWidth: 100, padding: '0.25rem 0.5rem' }} value={String(draft.active)} onChange={e => setDraft({ ...draft, active: e.target.value === 'true' })}>
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                          </select>
-                        : <span className={`dp-badge ${p.active ? 'dp-badge-green' : 'dp-badge-red'}`}>{p.active ? 'Active' : 'Inactive'}</span>}
-                    </td>
-                    <td>
-                      {editId === p.id
-                        ? <div className="dp-row-actions">
-                            <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={savePlan} disabled={saving}>{saving ? '…' : 'Save'}</button>
-                            <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => setEditId(null)}>Cancel</button>
-                          </div>
-                        : <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => startEdit(p)}>Edit</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                  ) : (
+                    <>
+                      <td>
+                        {editId === p.id
+                          ? <input className="dp-input" type="number" style={{ maxWidth: 80, padding: '0.25rem 0.5rem' }} value={draft.max_products ?? ''} onChange={e => setDraft({ ...draft, max_products: Number(e.target.value) || null })} />
+                          : (p.max_products ?? <span style={{ color: '#34d399' }}>Unlimited</span>)}
+                      </td>
+                      <td>
+                        {editId === p.id
+                          ? <input className="dp-input" type="number" style={{ maxWidth: 80, padding: '0.25rem 0.5rem' }} value={draft.max_variations_per_product ?? ''} onChange={e => setDraft({ ...draft, max_variations_per_product: Number(e.target.value) || null })} />
+                          : (p.max_variations_per_product ?? <span style={{ color: '#34d399' }}>Unlimited</span>)}
+                      </td>
+                    </>
+                  )}
+                  <td>
+                    {editId === p.id
+                      ? <select className="dp-select" style={{ maxWidth: 100, padding: '0.25rem 0.5rem' }} value={String(draft.active)} onChange={e => setDraft({ ...draft, active: e.target.value === 'true' })}>
+                          <option value="true">Active</option>
+                          <option value="false">Inactive</option>
+                        </select>
+                      : <span className={`dp-badge ${p.active ? 'dp-badge-green' : 'dp-badge-red'}`}>{p.active ? 'Active' : 'Inactive'}</span>}
+                  </td>
+                  <td>
+                    {editId === p.id
+                      ? <div className="dp-row-actions">
+                          <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={savePlan} disabled={saving}>{saving ? '…' : 'Save'}</button>
+                          <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => setEditId(null)}>Cancel</button>
+                        </div>
+                      : <button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => startEdit(p)}>Edit</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PricingTab({ token }) {
+  const [plans,   setPlans]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadPlans = async () => {
+    setLoading(true);
+    const res  = await fetch('/api/admin/plans', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => []);
+    setPlans(Array.isArray(data) ? data : []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadPlans(); }, []);
+
+  const subscriptions = plans.filter(p => p.billing_type !== 'one_time');
+  const otg           = plans.filter(p => p.billing_type === 'one_time');
+
+  return (
+    <>
+      <PricingTable title="Subscription Plans" plans={subscriptions} loading={loading} onSaved={loadPlans} token={token} />
+      <PricingTable title="Once in a While Use" plans={otg} loading={loading} onSaved={loadPlans} token={token} showCredits />
     </>
   );
 }
@@ -853,6 +886,564 @@ function ApiKeysTab({ token }) {
   );
 }
 
+// ── Tab: Client Access (Super Admin / Admin only) ─────────────────────────────
+// Staff already bypass every product/variation limit server-side (see the
+// isStaff check in barcodes-save.js) — this tab is the navigational entry
+// point into the same client-facing tools, since staff nav otherwise has no
+// link to them at all.
+function ClientAccessTab() {
+  const cards = [
+    { to: '/generate-barcode', icon: 'fa-barcode',    title: 'Generate Barcode', desc: 'Create EAN-13, UPC-A, or QR codes — unlimited, no plan restrictions for staff accounts.' },
+    { to: '/products',         icon: 'fa-box',         title: 'Products',        desc: 'Manage the product catalogue and variations, same as any client account.' },
+    { to: '/my-barcodes',      icon: 'fa-th',          title: 'My Barcodes',     desc: 'Browse and export everything generated under your staff account.' },
+  ];
+  return (
+    <div className="dp-section">
+      <div className="dp-alert dp-alert-info" style={{ marginBottom: '1.25rem' }}>
+        <strong>Staff access:</strong> Super Admin and Admin accounts have unlimited, permanent access to every client-facing tool below — no subscription or generation limit applies to your account.
+      </div>
+      <div className="dp-cards-2col">
+        {cards.map(c => (
+          <a key={c.to} href={c.to} className="dp-card" style={{ textDecoration: 'none', display: 'block' }}>
+            <div style={{ fontSize: '1.5rem', color: '#3b82f6', marginBottom: '0.6rem' }}><i className={`fas ${c.icon}`} /></div>
+            <h3 style={{ color: '#f0f0f0', fontSize: '1rem', marginBottom: '0.4rem' }}>{c.title}</h3>
+            <p style={{ color: '#9ca3af', fontSize: '0.85rem', margin: 0 }}>{c.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Tab: Reports ───────────────────────────────────────────────────────────────
+function ReportsTab({ token }) {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [from, setFrom] = useState(monthAgo);
+  const [to,   setTo]   = useState(todayStr);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadReport = async () => {
+    setLoading(true);
+    const res  = await fetch(`/api/admin/reports?from=${from}T00:00:00.000Z&to=${to}T23:59:59.999Z`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => null);
+    setReport(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadReport(); }, []);
+
+  return (
+    <>
+      <div className="dp-filterbar">
+        <div className="dp-form-row" style={{ marginBottom: 0 }}>
+          <label className="dp-label">From</label>
+          <input className="dp-input" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+        </div>
+        <div className="dp-form-row" style={{ marginBottom: 0 }}>
+          <label className="dp-label">To</label>
+          <input className="dp-input" type="date" value={to} onChange={e => setTo(e.target.value)} />
+        </div>
+        <button className="dp-btn dp-btn-primary dp-btn-sm" onClick={loadReport}>Run Report</button>
+        {report && (
+          <div style={{ marginLeft: 'auto' }}>
+            <ExportButtons
+              filename="report"
+              title={`Report ${from} to ${to}`}
+              headers={['Reference', 'Plan', 'Amount', 'Method', 'Status', 'Date']}
+              rows={(report.payments ?? []).map(p => [p.reference, p.plan, fmtMoney(p.amount_usd), p.method, p.status, fmtDate(p.created_at)])}
+            />
+          </div>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="dp-loading"><div className="dp-spinner" /></div>
+      ) : !report ? (
+        <div className="dp-alert dp-alert-error">Failed to load report.</div>
+      ) : (
+        <>
+          <div className="dp-stat-row">
+            <div className="dp-stat"><div className="dp-stat-label">New Users</div><div className="dp-stat-value">{report.new_users}</div></div>
+            <div className="dp-stat"><div className="dp-stat-label">Barcodes Generated</div><div className="dp-stat-value">{report.new_barcodes}</div></div>
+            <div className="dp-stat"><div className="dp-stat-label">Revenue</div><div className="dp-stat-value">{fmtMoney(report.revenue)}</div></div>
+            <div className="dp-stat"><div className="dp-stat-label">Paid / Pending</div><div className="dp-stat-value">{report.paid_transactions} / {report.pending_transactions}</div></div>
+          </div>
+          <div className="dp-section">
+            <div className="dp-section-header"><p className="dp-section-title">Revenue by Plan</p></div>
+            {report.by_plan.length === 0 ? <div className="dp-empty"><p>No paid transactions in this range.</p></div> : (
+              <div className="dp-table-wrap">
+                <table className="dp-table">
+                  <thead><tr><th>Plan</th><th>Count</th><th>Total</th></tr></thead>
+                  <tbody>
+                    {report.by_plan.map(p => (
+                      <tr key={p.plan}><td>{p.plan}</td><td>{p.count}</td><td>{fmtMoney(p.total)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// ── Tab: Configurations ────────────────────────────────────────────────────────
+function useSettingsCategory(token, category) {
+  const [settings, setSettings] = useState({});
+  const [loading, setLoading]   = useState(true);
+  const [saving,  setSaving]    = useState(false);
+  const [msg,     setMsg]       = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    const res  = await fetch(`/api/admin/platform-settings?category=${category}`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json().catch(() => ({}));
+    const map  = {};
+    for (const s of data.settings ?? []) map[s.key] = s.value;
+    setSettings(map);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const save = async (changes) => {
+    setSaving(true);
+    const res = await fetch('/api/admin/platform-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ settings: Object.entries(changes).map(([key, value]) => ({ key, value })) }),
+    });
+    setSaving(false);
+    if (res.ok) { setMsg('Settings saved.'); setSettings(s => ({ ...s, ...changes })); }
+    else setMsg('Failed to save settings.');
+  };
+
+  return { settings, loading, saving, msg, setMsg, save };
+}
+
+function ConfigurationsTab({ token }) {
+  const { settings, loading, saving, msg, setMsg, save } = useSettingsCategory(token, 'configurations');
+  const [draft, setDraft] = useState(null);
+
+  useEffect(() => { if (!loading && !draft) setDraft(settings); }, [loading]);
+
+  if (loading || !draft) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+
+  return (
+    <>
+      {msg && <div className="dp-alert dp-alert-success" onClick={() => setMsg('')} style={{ cursor: 'pointer' }}>{msg} ✕</div>}
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Label Printer Defaults</p></div>
+        <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          Barcode exports are generated at these dimensions. GS1 retail spec is 38mm width at 300 DPI — only change this if your label stock differs.
+        </p>
+        <div className="dp-2col">
+          <div className="dp-form-row">
+            <label className="dp-label">Label Width (mm)</label>
+            <input className="dp-input" type="number" value={draft.label_printer_width_mm ?? ''} onChange={e => setDraft({ ...draft, label_printer_width_mm: Number(e.target.value) })} />
+          </div>
+          <div className="dp-form-row">
+            <label className="dp-label">Print Resolution (DPI)</label>
+            <input className="dp-input" type="number" value={draft.label_printer_dpi ?? ''} onChange={e => setDraft({ ...draft, label_printer_dpi: Number(e.target.value) })} />
+          </div>
+        </div>
+        <div className="dp-form-row">
+          <label className="dp-label">Default Export Format</label>
+          <select className="dp-select" value={draft.label_printer_format ?? 'PNG'} onChange={e => setDraft({ ...draft, label_printer_format: e.target.value })}>
+            <option value="PNG">PNG</option>
+            <option value="PDF">PDF</option>
+          </select>
+        </div>
+        <div className="dp-form-row">
+          <label className="dp-label">Default Barcode Country Standard</label>
+          <select className="dp-select" value={draft.default_barcode_country ?? 'ZW'} onChange={e => setDraft({ ...draft, default_barcode_country: e.target.value })}>
+            <option value="ZW">Zimbabwe (EAN-13)</option>
+            <option value="ZA">South Africa (EAN-13)</option>
+            <option value="US">United States (UPC-A)</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Web Analytics Integration</p></div>
+        <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          Connect a web analytics provider to unlock visitor, traffic-source, and audience-demographic figures on the Statistics tab. Without this, only figures ScanCodeZW's own database can answer (signups, plan mix, retention) are shown.
+        </p>
+        <div className="dp-2col">
+          <div className="dp-form-row">
+            <label className="dp-label">Provider</label>
+            <select className="dp-select" value={draft.web_analytics_provider ?? 'none'} onChange={e => setDraft({ ...draft, web_analytics_provider: e.target.value })}>
+              <option value="none">Not connected</option>
+              <option value="plausible">Plausible</option>
+              <option value="google_analytics">Google Analytics</option>
+            </select>
+          </div>
+          <div className="dp-form-row">
+            <label className="dp-label">Tracking / Site ID</label>
+            <input className="dp-input" value={draft.web_analytics_tracking_id ?? ''} onChange={e => setDraft({ ...draft, web_analytics_tracking_id: e.target.value })} placeholder="e.g. G-XXXXXXX or scancode.co.zw" />
+          </div>
+        </div>
+      </div>
+
+      <button className="dp-btn dp-btn-primary" disabled={saving} onClick={() => save(draft)}>
+        {saving ? 'Saving…' : 'Save Configuration'}
+      </button>
+    </>
+  );
+}
+
+// ── Tab: Settings (Platform) ───────────────────────────────────────────────────
+function ToggleRow({ label, desc, checked, onChange }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div>
+        <div style={{ color: '#e5e7eb', fontSize: '0.9rem', fontWeight: 500 }}>{label}</div>
+        {desc && <div style={{ color: '#6b7280', fontSize: '0.78rem', marginTop: '0.15rem' }}>{desc}</div>}
+      </div>
+      <label style={{ position: 'relative', display: 'inline-block', width: 42, height: 24, flexShrink: 0 }}>
+        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: 999, cursor: 'pointer',
+          background: checked ? '#3b82f6' : 'rgba(255,255,255,0.15)', transition: 'background 0.15s',
+        }}>
+          <span style={{
+            position: 'absolute', top: 3, left: checked ? 21 : 3, width: 18, height: 18,
+            borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+          }} />
+        </span>
+      </label>
+    </div>
+  );
+}
+
+function SettingsTab({ token }) {
+  const { settings, loading, saving, msg, setMsg, save } = useSettingsCategory(token, 'settings');
+  const [draft, setDraft] = useState(null);
+
+  useEffect(() => { if (!loading && !draft) setDraft(settings); }, [loading]);
+
+  if (loading || !draft) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+
+  return (
+    <>
+      {msg && <div className="dp-alert dp-alert-success" onClick={() => setMsg('')} style={{ cursor: 'pointer' }}>{msg} ✕</div>}
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Platform Availability</p></div>
+        <ToggleRow label="Maintenance Mode" desc="When on, show a maintenance message instead of the app to all non-staff users." checked={!!draft.maintenance_mode} onChange={v => setDraft({ ...draft, maintenance_mode: v })} />
+        <ToggleRow label="New Signups Enabled" desc="Turn off to temporarily stop new account registration." checked={!!draft.signup_enabled} onChange={v => setDraft({ ...draft, signup_enabled: v })} />
+        <ToggleRow label="Free Generation Enabled" desc="Controls whether new signups get the 1 free barcode generation." checked={!!draft.free_generation_enabled} onChange={v => setDraft({ ...draft, free_generation_enabled: v })} />
+      </div>
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Support Contact</p></div>
+        <div className="dp-2col">
+          <div className="dp-form-row">
+            <label className="dp-label">Support Email</label>
+            <input className="dp-input" value={draft.support_email ?? ''} onChange={e => setDraft({ ...draft, support_email: e.target.value })} />
+          </div>
+          <div className="dp-form-row">
+            <label className="dp-label">Support WhatsApp</label>
+            <input className="dp-input" value={draft.support_whatsapp ?? ''} onChange={e => setDraft({ ...draft, support_whatsapp: e.target.value })} />
+          </div>
+        </div>
+      </div>
+      <button className="dp-btn dp-btn-primary" disabled={saving} onClick={() => save(draft)}>
+        {saving ? 'Saving…' : 'Save Settings'}
+      </button>
+    </>
+  );
+}
+
+// ── Tab: Invoicing ─────────────────────────────────────────────────────────────
+function InvoicingTab({ token }) {
+  const [payments, setPayments] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/revenue', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => ({}))
+      .then(data => { setPayments((data.transactions ?? []).filter(p => p.status === 'paid')); setLoading(false); });
+  }, []);
+
+  const downloadInvoice = async (p) => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ unit: 'pt' });
+    doc.setFontSize(18); doc.setFont(undefined, 'bold');
+    doc.text('ScanCodeZW', 40, 50);
+    doc.setFontSize(10); doc.setFont(undefined, 'normal');
+    doc.text('www.scancode.co.zw', 40, 66);
+    doc.setFontSize(14); doc.setFont(undefined, 'bold');
+    doc.text('INVOICE', 400, 50);
+    doc.setFontSize(9); doc.setFont(undefined, 'normal');
+    doc.text(`Reference: ${p.reference}`, 400, 66);
+    doc.text(`Date: ${fmtDate(p.paid_at ?? p.created_at)}`, 400, 78);
+
+    doc.setDrawColor(200); doc.line(40, 100, 555, 100);
+
+    doc.setFontSize(10);
+    doc.text(`Customer: ${p.profiles?.username ?? p.user_id}`, 40, 130);
+    doc.text(`Plan: ${p.plan}`, 40, 148);
+    doc.text(`Payment Method: ${p.method}`, 40, 166);
+    doc.text(`Status: ${p.status}`, 40, 184);
+
+    doc.setFontSize(12); doc.setFont(undefined, 'bold');
+    doc.text(`Total Paid: ${fmtMoney(p.amount_usd)}`, 40, 220);
+
+    doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(120);
+    doc.text('This is a system-generated invoice for a completed payment.', 40, 780);
+
+    doc.save(`invoice-${p.reference}.pdf`);
+  };
+
+  return (
+    <>
+      <div className="dp-stat-row">
+        <div className="dp-stat"><div className="dp-stat-label">Invoices</div><div className="dp-stat-value">{payments.length}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Total Invoiced</div><div className="dp-stat-value">{fmtMoney(payments.reduce((s, p) => s + Number(p.amount_usd ?? 0), 0))}</div></div>
+      </div>
+      <div className="dp-section">
+        <div className="dp-section-header">
+          <p className="dp-section-title">Paid Invoices</p>
+          <ExportButtons
+            filename="invoices" title="Invoices"
+            headers={['Reference', 'Customer', 'Plan', 'Amount', 'Method', 'Date']}
+            rows={payments.map(p => [p.reference, p.profiles?.username ?? '', p.plan, fmtMoney(p.amount_usd), p.method, fmtDate(p.paid_at ?? p.created_at)])}
+          />
+        </div>
+        {loading ? (
+          <div className="dp-loading"><div className="dp-spinner" /></div>
+        ) : payments.length === 0 ? (
+          <div className="dp-empty"><p>No paid invoices yet.</p></div>
+        ) : (
+          <div className="dp-table-wrap">
+            <table className="dp-table">
+              <thead><tr><th>Reference</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Method</th><th>Date</th><th></th></tr></thead>
+              <tbody>
+                {payments.map(p => (
+                  <tr key={p.id}>
+                    <td><code>{p.reference}</code></td>
+                    <td style={{ color: '#9ca3af' }}>{p.profiles?.username ?? '—'}</td>
+                    <td><span className={`dp-badge ${PLAN_COLOR[p.plan] ?? 'dp-badge-gray'}`}>{p.plan}</span></td>
+                    <td style={{ color: '#f0f0f0', fontWeight: 600 }}>{fmtMoney(p.amount_usd)}</td>
+                    <td style={{ color: '#9ca3af', textTransform: 'capitalize' }}>{p.method}</td>
+                    <td style={{ color: '#6b7280' }}>{fmtDate(p.paid_at ?? p.created_at)}</td>
+                    <td><button className="dp-btn dp-btn-ghost dp-btn-sm" onClick={() => downloadInvoice(p)}>Download</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ── Tab: Accounting ────────────────────────────────────────────────────────────
+function AccountingTab({ token }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/accounting', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => null)
+      .then(d => { setData(d); setLoading(false); });
+  }, []);
+
+  if (loading) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+  if (!data) return <div className="dp-alert dp-alert-error">Failed to load accounting data.</div>;
+
+  return (
+    <>
+      <div className="dp-stat-row">
+        <div className="dp-stat"><div className="dp-stat-label">Net Revenue</div><div className="dp-stat-value">{fmtMoney(data.net_revenue)}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Outstanding</div><div className="dp-stat-value">{fmtMoney(data.outstanding)}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Refunded</div><div className="dp-stat-value">{fmtMoney(data.refunded_total)}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Cancelled</div><div className="dp-stat-value">{fmtMoney(data.cancelled_total)}</div></div>
+      </div>
+
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Monthly Ledger (12 months)</p></div>
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={data.monthly_ledger}>
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} />
+            <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `$${v}`} />
+            <Tooltip contentStyle={CHART_TOOLTIP} labelStyle={CHART_LABEL} formatter={v => [fmtMoney(v)]} />
+            <Line type="monotone" dataKey="revenue"  name="Revenue"  stroke="#34d399" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="refunded" name="Refunded" stroke="#f87171" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="dp-section">
+        <div className="dp-section-header">
+          <p className="dp-section-title">Transaction Ledger</p>
+          <ExportButtons
+            filename="accounting-ledger" title="Accounting Ledger"
+            headers={['Reference', 'Plan', 'Amount', 'Method', 'Status', 'Date']}
+            rows={data.transactions.map(p => [p.reference, p.plan, fmtMoney(p.amount_usd), p.method, p.status, fmtDate(p.created_at)])}
+          />
+        </div>
+        <div className="dp-table-wrap">
+          <table className="dp-table">
+            <thead><tr><th>Reference</th><th>Plan</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              {data.transactions.slice(0, 100).map(p => (
+                <tr key={p.reference}>
+                  <td><code>{p.reference}</code></td>
+                  <td><span className={`dp-badge ${PLAN_COLOR[p.plan] ?? 'dp-badge-gray'}`}>{p.plan}</span></td>
+                  <td style={{ color: '#f0f0f0', fontWeight: 600 }}>{fmtMoney(p.amount_usd)}</td>
+                  <td style={{ color: '#9ca3af', textTransform: 'capitalize' }}>{p.method}</td>
+                  <td><span className={`dp-badge ${STATUS_COLOR[p.status] ?? 'dp-badge-gray'}`}>{p.status}</span></td>
+                  <td style={{ color: '#6b7280' }}>{fmtDate(p.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Tab: System Health ─────────────────────────────────────────────────────────
+function SystemHealthTab({ token }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    fetch('/api/admin/system-health', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => null)
+      .then(d => { setData(d); setLoading(false); });
+  };
+  useEffect(load, []);
+
+  if (loading) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+  if (!data) return <div className="dp-alert dp-alert-error">Failed to load system health.</div>;
+
+  return (
+    <>
+      <div className={`dp-alert ${data.status === 'operational' ? 'dp-alert-success' : 'dp-alert-error'}`} style={{ marginBottom: '1.25rem' }}>
+        <strong>System status: {data.status === 'operational' ? 'All systems operational' : 'Degraded'}</strong> — checked {fmtDate(data.checked_at)}
+        <button className="dp-btn dp-btn-ghost dp-btn-sm" style={{ marginLeft: '1rem' }} onClick={load}>Refresh</button>
+      </div>
+
+      <div className="dp-stat-row">
+        <div className="dp-stat"><div className="dp-stat-label">Database</div><div className="dp-stat-value" style={{ fontSize: '1.2rem' }}>{data.database.connected ? 'Connected' : 'Unreachable'}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">DB Latency</div><div className="dp-stat-value">{data.database.latency_ms}ms</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Users</div><div className="dp-stat-value">{data.table_counts.users}</div></div>
+        <div className="dp-stat"><div className="dp-stat-label">Payments</div><div className="dp-stat-value">{data.table_counts.payments}</div></div>
+      </div>
+
+      <div className="dp-2col">
+        <div className="dp-section" style={{ marginBottom: 0 }}>
+          <div className="dp-section-header"><p className="dp-section-title">Table Row Counts</p></div>
+          <div className="dp-table-wrap">
+            <table className="dp-table">
+              <tbody>
+                <tr><td>Users</td><td>{data.table_counts.users}</td></tr>
+                <tr><td>Products</td><td>{data.table_counts.products}</td></tr>
+                <tr><td>Variations (barcodes)</td><td>{data.table_counts.variations}</td></tr>
+                <tr><td>Payments</td><td>{data.table_counts.payments}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="dp-section" style={{ marginBottom: 0 }}>
+          <div className="dp-section-header"><p className="dp-section-title">Developer API Error Rate</p></div>
+          {data.api_usage_sample.note ? (
+            <div className="dp-empty"><p>{data.api_usage_sample.note}</p></div>
+          ) : (
+            <>
+              <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>Last {data.api_usage_sample.sample_size} Developer API requests</p>
+              <div className="dp-stat"><div className="dp-stat-label">5xx Error Rate</div><div className="dp-stat-value">{data.api_usage_sample.error_rate_pct}%</div></div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Tab: Statistics ─────────────────────────────────────────────────────────────
+function StatisticsTab({ token }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/statistics', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).catch(() => null)
+      .then(d => { setData(d); setLoading(false); });
+  }, []);
+
+  if (loading) return <div className="dp-loading"><div className="dp-spinner" /></div>;
+  if (!data) return <div className="dp-alert dp-alert-error">Failed to load statistics.</div>;
+
+  return (
+    <>
+      {!data.web_analytics.connected && (
+        <div className="dp-alert dp-alert-info" style={{ marginBottom: '1.25rem' }}>
+          {data.web_analytics.note}
+        </div>
+      )}
+
+      {data.retention && (
+        <div className="dp-stat-row">
+          <div className="dp-stat"><div className="dp-stat-label">Total Accounts</div><div className="dp-stat-value">{data.retention.total_accounts}</div></div>
+          <div className="dp-stat"><div className="dp-stat-label">Active (7d)</div><div className="dp-stat-value">{data.retention.active_7d_pct}%</div></div>
+          <div className="dp-stat"><div className="dp-stat-label">Active (30d)</div><div className="dp-stat-value">{data.retention.active_30d_pct}%</div></div>
+          <div className="dp-stat"><div className="dp-stat-label">Return Users (30d)</div><div className="dp-stat-value">{data.retention.active_last_30d}</div></div>
+        </div>
+      )}
+
+      <div className="dp-section">
+        <div className="dp-section-header"><p className="dp-section-title">Signups — Last 30 Days</p></div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={data.signup_trend}>
+            <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} interval={4} />
+            <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} />
+            <Tooltip contentStyle={CHART_TOOLTIP} labelStyle={CHART_LABEL} />
+            <Bar dataKey="signups" fill="rgba(59,130,246,0.75)" radius={[3,3,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="dp-2col">
+        <div className="dp-section" style={{ marginBottom: 0 }}>
+          <div className="dp-section-header"><p className="dp-section-title">Plan Distribution</p></div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={data.plan_distribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`}>
+                {data.plan_distribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="dp-section" style={{ marginBottom: 0 }}>
+          <div className="dp-section-header"><p className="dp-section-title">Barcode Country Distribution</p></div>
+          {data.country_distribution.length === 0 ? <div className="dp-empty"><p>No barcodes generated yet.</p></div> : (
+            <div className="dp-table-wrap">
+              <table className="dp-table">
+                <thead><tr><th>Country Standard</th><th>Barcodes</th></tr></thead>
+                <tbody>
+                  {data.country_distribution.map(c => (
+                    <tr key={c.name}><td>{c.name}</td><td>{c.value}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user }   = useAuth();
@@ -872,20 +1463,29 @@ export default function AdminPage() {
   let tabs;
   if (isSuperAdmin) {
     tabs = [
-      { key: 'users',     label: 'Users'     },
-      { key: 'staff',     label: 'Staff'     },
-      { key: 'analytics', label: 'Analytics' },
-      { key: 'revenue',   label: 'Revenue'   },
-      { key: 'support',   label: 'Support'   },
-      { key: 'api-keys',  label: 'API Keys'  },
-      { key: 'plans',     label: 'Plans'     },
+      { key: 'users',           label: 'Users'          },
+      { key: 'staff',           label: 'Staff'          },
+      { key: 'client-access',   label: 'Client Access'  },
+      { key: 'analytics',       label: 'Analytics'      },
+      { key: 'statistics',      label: 'Statistics'     },
+      { key: 'reports',         label: 'Reports'        },
+      { key: 'revenue',         label: 'Revenue'        },
+      { key: 'accounting',      label: 'Accounting'     },
+      { key: 'invoicing',       label: 'Invoicing'      },
+      { key: 'pricing',         label: 'Pricing'        },
+      { key: 'support',         label: 'Support'        },
+      { key: 'api-keys',        label: 'API Keys'       },
+      { key: 'configurations',  label: 'Configurations' },
+      { key: 'settings',        label: 'Settings'       },
+      { key: 'system-health',   label: 'System Health'  },
     ];
   } else if (user.isAdmin) {
     tabs = [
-      { key: 'users',     label: 'Customers' },
-      { key: 'analytics', label: 'Analytics' },
-      { key: 'revenue',   label: 'Revenue'   },
-      { key: 'support',   label: 'Support'   },
+      { key: 'users',         label: 'Customers'     },
+      { key: 'client-access', label: 'Client Access' },
+      { key: 'analytics',     label: 'Analytics'     },
+      { key: 'revenue',       label: 'Revenue'       },
+      { key: 'support',       label: 'Support'       },
     ];
   } else if (user.isTechnicalSupport || user.isClerk) {
     tabs = [
@@ -905,9 +1505,12 @@ export default function AdminPage() {
   }
 
   const navKeyMap = {
-    users: 'customers', staff: 'staff',
-    analytics: 'analytics', revenue: 'sales',
-    support: 'support', 'api-keys': 'api', plans: 'settings',
+    users: 'customers', staff: 'staff', 'client-access': 'client-access',
+    analytics: 'analytics', statistics: 'statistics', reports: 'reports',
+    revenue: 'sales', accounting: 'accounting', invoicing: 'invoicing',
+    pricing: 'pricing', support: 'support', 'api-keys': 'api',
+    configurations: 'configurations', settings: 'platform-settings',
+    'system-health': 'system-health',
   };
   const navKey = navKeyMap[activeTab] ?? 'customers';
 
@@ -927,13 +1530,21 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {activeTab === 'users'     && <UsersTab token={user.accessToken} isSuperAdmin={isSuperAdmin} clientsOnly={!isSuperAdmin} />}
-      {activeTab === 'staff'     && isSuperAdmin && <StaffTab token={user.accessToken} />}
-      {activeTab === 'analytics' && <AnalyticsTab token={user.accessToken} />}
-      {activeTab === 'revenue'   && <RevenueTab token={user.accessToken} />}
-      {activeTab === 'support'   && <SupportTab token={user.accessToken} />}
-      {activeTab === 'api-keys'  && isSuperAdmin && <ApiKeysTab token={user.accessToken} />}
-      {activeTab === 'plans'     && isSuperAdmin && <PlansTab token={user.accessToken} />}
+      {activeTab === 'users'          && <UsersTab token={user.accessToken} isSuperAdmin={isSuperAdmin} clientsOnly={!isSuperAdmin} />}
+      {activeTab === 'staff'          && isSuperAdmin && <StaffTab token={user.accessToken} />}
+      {activeTab === 'client-access'  && (isSuperAdmin || user.isAdmin) && <ClientAccessTab />}
+      {activeTab === 'analytics'      && <AnalyticsTab token={user.accessToken} />}
+      {activeTab === 'statistics'     && isSuperAdmin && <StatisticsTab token={user.accessToken} />}
+      {activeTab === 'reports'        && isSuperAdmin && <ReportsTab token={user.accessToken} />}
+      {activeTab === 'revenue'        && <RevenueTab token={user.accessToken} />}
+      {activeTab === 'accounting'     && isSuperAdmin && <AccountingTab token={user.accessToken} />}
+      {activeTab === 'invoicing'      && isSuperAdmin && <InvoicingTab token={user.accessToken} />}
+      {activeTab === 'pricing'        && isSuperAdmin && <PricingTab token={user.accessToken} />}
+      {activeTab === 'support'        && <SupportTab token={user.accessToken} />}
+      {activeTab === 'api-keys'       && isSuperAdmin && <ApiKeysTab token={user.accessToken} />}
+      {activeTab === 'configurations' && isSuperAdmin && <ConfigurationsTab token={user.accessToken} />}
+      {activeTab === 'settings'       && isSuperAdmin && <SettingsTab token={user.accessToken} />}
+      {activeTab === 'system-health'  && isSuperAdmin && <SystemHealthTab token={user.accessToken} />}
     </DashLayout>
   );
 }

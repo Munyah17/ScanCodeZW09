@@ -9,16 +9,21 @@
 // [...path].js catch-all only matched single-segment paths in production).
 import { j } from './_utils/response.js';
 
+import adminAccounting from "./_handlers/admin-accounting.js";
 import adminAllApiKeys from "./_handlers/admin-all-api-keys.js";
 import adminAnalytics from "./_handlers/admin-analytics.js";
 import adminCreateUser from "./_handlers/admin-create-user.js";
 import adminExternalCredentials from "./_handlers/admin-external-credentials.js";
 import adminMigratePlans from "./_handlers/admin-migrate-plans.js";
 import adminPlans from "./_handlers/admin-plans.js";
+import adminPlatformSettings from "./_handlers/admin-platform-settings.js";
+import adminReports from "./_handlers/admin-reports.js";
 import adminRevenue from "./_handlers/admin-revenue.js";
 import adminStaff from "./_handlers/admin-staff.js";
+import adminStatistics from "./_handlers/admin-statistics.js";
 import adminStats from "./_handlers/admin-stats.js";
 import adminSupportTickets from "./_handlers/admin-support-tickets.js";
+import adminSystemHealth from "./_handlers/admin-system-health.js";
 import adminUpdateUser from "./_handlers/admin-update-user.js";
 import adminUsers from "./_handlers/admin-users.js";
 import authChangePassword from "./_handlers/auth-change-password.js";
@@ -67,16 +72,21 @@ import v1ProductsList from "./_handlers/v1-products-list.js";
 import v1QrGenerate from "./_handlers/v1-qr-generate.js";
 
 const routes = {
+  "/api/admin/accounting": adminAccounting,
   "/api/admin/all-api-keys": adminAllApiKeys,
   "/api/admin/analytics": adminAnalytics,
   "/api/admin/create-user": adminCreateUser,
   "/api/admin/external-credentials": adminExternalCredentials,
   "/api/admin/migrate-plans": adminMigratePlans,
   "/api/admin/plans": adminPlans,
+  "/api/admin/platform-settings": adminPlatformSettings,
+  "/api/admin/reports": adminReports,
   "/api/admin/revenue": adminRevenue,
   "/api/admin/staff": adminStaff,
+  "/api/admin/statistics": adminStatistics,
   "/api/admin/stats": adminStats,
   "/api/admin/support-tickets": adminSupportTickets,
+  "/api/admin/system-health": adminSystemHealth,
   "/api/admin/update-user": adminUpdateUser,
   "/api/admin/users": adminUsers,
   "/api/auth/change-password": authChangePassword,
