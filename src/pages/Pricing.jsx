@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePlans } from '../context/PlansContext';
 import Layout from '../components/Layout';
 import { VisaLogo, MastercardLogo, AmexLogo, EcoCashLogo, OneMoneyLogo, InnBucksLogo, ZipitLogo } from '../components/PaymentLogos';
 
-const PLANS = [
+// Feature copy is hand-written marketing text (not stored in the DB); price
+// comes live from subscription_plans via usePlans() in the component below,
+// so a price set in the Super Admin Pricing tab shows up here immediately.
+const PLAN_COPY = [
   {
     key: 'starter',
     name: 'Starter',
-    price: '5.90',
     popular: false,
     desc: 'Perfect for sole traders and micro-businesses getting started with barcoding.',
     features: [
@@ -23,7 +26,6 @@ const PLANS = [
   {
     key: 'business',
     name: 'Business',
-    price: '16.90',
     popular: true,
     desc: 'The go-to plan for growing farms and retailers managing multiple product lines.',
     features: [
@@ -39,7 +41,6 @@ const PLANS = [
   {
     key: 'pro',
     name: 'Pro',
-    price: '29.90',
     popular: false,
     desc: 'For established businesses with large catalogues and multi-country requirements.',
     features: [
@@ -87,10 +88,13 @@ function FaqItem({ q, a }) {
 }
 
 export default function Pricing() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user }  = useAuth();
+  const { plans } = usePlans();
+  const navigate  = useNavigate();
 
   const go = (planKey) => navigate(user ? `/checkout?plan=${planKey}` : `/register?plan=${planKey}`);
+  const price = (key) => plans[key]?.price_usd != null ? Number(plans[key].price_usd).toFixed(2) : '—';
+  const PLANS = PLAN_COPY.map(p => ({ ...p, price: price(p.key) }));
 
   return (
     <Layout>
@@ -142,7 +146,7 @@ export default function Pricing() {
                 <div className="extra-plan-icon" style={{ color: '#38bdf8' }}><i className="fas fa-barcode"></i></div>
                 <h3>Single Generation</h3>
                 <p className="extra-plan-tag" style={{ background: 'rgba(56,189,248,0.15)', color: '#7dd3fc' }}>Pay Per Use</p>
-                <div className="extra-plan-price">$10.00 <span>/ barcode</span></div>
+                <div className="extra-plan-price">${price('otg_single')} <span>/ barcode</span></div>
                 <p className="extra-plan-desc">Generate one unique GS1-compliant barcode. Includes EAN-13 or UPC-A, PNG download at 38mm / 300 DPI, and QR code. Pay before each generation — no commitment.</p>
                 <ul className="extra-plan-features">
                   <li><i className="fas fa-check"></i> 1 barcode generation</li>
@@ -152,7 +156,7 @@ export default function Pricing() {
                   <li><i className="fas fa-check"></i> Instant approval on payment</li>
                 </ul>
                 <button className="btn btn-block" style={{ marginTop: 'auto', background: '#0ea5e9', color: '#fff', border: 'none' }} onClick={() => go('otg_single')}>
-                  Buy 1 Barcode — $10
+                  Buy 1 Barcode — ${price('otg_single')}
                 </button>
               </div>
 
@@ -160,7 +164,7 @@ export default function Pricing() {
                 <div className="extra-plan-icon" style={{ color: '#86efac' }}><i className="fas fa-layer-group"></i></div>
                 <h3>Bundle — 3 Barcodes</h3>
                 <p className="extra-plan-tag" style={{ background: 'rgba(134,239,172,0.15)', color: '#86efac' }}>Best Value</p>
-                <div className="extra-plan-price">$20.00 <span>/ 3 barcodes</span></div>
+                <div className="extra-plan-price">${price('otg_triple')} <span>/ 3 barcodes</span></div>
                 <p className="extra-plan-desc">Generate three unique barcodes in one payment. Each barcode gets its own GS1-compliant number, PNG export, and QR code. Save $10 compared to buying individually.</p>
                 <ul className="extra-plan-features">
                   <li><i className="fas fa-check"></i> 3 barcode generations</li>
@@ -170,7 +174,7 @@ export default function Pricing() {
                   <li><i className="fas fa-check"></i> Credits never expire</li>
                 </ul>
                 <button className="btn btn-block btn-primary" style={{ marginTop: 'auto' }} onClick={() => go('otg_triple')}>
-                  Buy 3 Barcodes — $20
+                  Buy 3 Barcodes — ${price('otg_triple')}
                 </button>
               </div>
 
@@ -178,7 +182,7 @@ export default function Pricing() {
                 <div className="extra-plan-icon" style={{ color: '#c4b5fd' }}><i className="fas fa-boxes-stacked"></i></div>
                 <h3>Bundle — 10 Barcodes</h3>
                 <p className="extra-plan-tag" style={{ background: 'rgba(196,181,253,0.15)', color: '#c4b5fd' }}>Biggest Savings</p>
-                <div className="extra-plan-price">$50.00 <span>/ 10 barcodes</span></div>
+                <div className="extra-plan-price">${price('otg_ten')} <span>/ 10 barcodes</span></div>
                 <p className="extra-plan-desc">Generate ten unique barcodes in one payment. Ideal for a seasonal batch of new products. Save $50 compared to buying individually.</p>
                 <ul className="extra-plan-features">
                   <li><i className="fas fa-check"></i> 10 barcode generations</li>
@@ -188,7 +192,7 @@ export default function Pricing() {
                   <li><i className="fas fa-check"></i> Credits never expire</li>
                 </ul>
                 <button className="btn btn-block" style={{ marginTop: 'auto', background: '#8b5cf6', color: '#fff', border: 'none' }} onClick={() => go('otg_ten')}>
-                  Buy 10 Barcodes — $50
+                  Buy 10 Barcodes — ${price('otg_ten')}
                 </button>
               </div>
             </div>
@@ -203,7 +207,7 @@ export default function Pricing() {
                 <div className="extra-plan-icon"><i className="fas fa-gem"></i></div>
                 <h3>Lifetime Access</h3>
                 <p className="extra-plan-tag">One-Off Payment</p>
-                <div className="extra-plan-price">$129.99 <span>once</span></div>
+                <div className="extra-plan-price">${price('lifetime')} <span>once</span></div>
                 <p className="extra-plan-desc">Pay once, use forever. Unlimited everything — no recurring fees, no expiry, no surprises.</p>
                 <ul className="extra-plan-features">
                   <li><i className="fas fa-check"></i> Unlimited products &amp; variations</li>

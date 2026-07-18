@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { PlansProvider } from './context/PlansContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Landing from './pages/Landing';
 import Features from './pages/Features';
@@ -41,6 +42,7 @@ function PageTransition({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <PlansProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
@@ -150,6 +152,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </PlansProvider>
     </AuthProvider>
   );
 }

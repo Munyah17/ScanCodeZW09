@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePlans } from '../context/PlansContext';
 import DashLayout from '../components/DashLayout';
 
-const REGULAR_PLANS = [
-  { key: 'starter',  label: 'Starter',  price: '4.79',  features: ['3 products', '3 variations/product', 'EAN-13 & UPC-A', 'QR codes', 'PNG & PDF'] },
-  { key: 'business', label: 'Business', price: '11.99',  features: ['20 products', '15 variations/product', 'All formats', 'Custom branding', 'Priority support'] },
-  { key: 'pro',      label: 'Pro',      price: '24.99', features: ['100 products', '50 variations/product', 'All formats', '24/7 support', 'API access'] },
-];
+// Feature copy stays hand-written (marketing text isn't stored in the DB);
+// price comes live from subscription_plans via usePlans() below, so this
+// page never drifts from what checkout actually charges again.
+const REGULAR_PLAN_FEATURES = {
+  starter:  ['3 products', '3 variations/product', 'EAN-13 & UPC-A', 'QR codes', 'PNG & PDF'],
+  business: ['20 products', '15 variations/product', 'All formats', 'Custom branding', 'Priority support'],
+  pro:      ['100 products', '50 variations/product', 'All formats', '24/7 support', 'API access'],
+};
+const REGULAR_PLAN_LABELS = { starter: 'Starter', business: 'Business', pro: 'Pro' };
 
-const PREMIUM_PLANS = [
-  { key: 'lifetime', label: 'Lifetime', price: '129.99', features: ['Unlimited products', 'Unlimited variations', 'All formats forever', 'Priority support', 'No renewals'], oneTime: true },
-  { key: 'enterprise', label: 'Enterprise', price: 'Custom', features: ['Unlimited everything', 'White-label exports', 'Full API access', 'SLA guarantee', 'Dedicated manager'], custom: true },
-];
+const PREMIUM_PLAN_FEATURES = {
+  lifetime:   ['Unlimited products', 'Unlimited variations', 'All formats forever', 'Priority support', 'No renewals'],
+  enterprise: ['Unlimited everything', 'White-label exports', 'Full API access', 'SLA guarantee', 'Dedicated manager'],
+};
+const PREMIUM_PLAN_LABELS = { lifetime: 'Lifetime', enterprise: 'Enterprise' };
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
+  const { plans }        = usePlans();
 
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [deleting,      setDeleting]      = useState(false);
@@ -24,6 +31,16 @@ export default function SettingsPage() {
   const [err,           setErr]           = useState('');
   const currentPlan  = user?.subscription_type ?? 'free';
   const isSuperAdmin = user?.isSuperAdmin;
+
+  const REGULAR_PLANS = ['starter', 'business', 'pro'].map(key => ({
+    key, label: REGULAR_PLAN_LABELS[key],
+    price: plans[key]?.price_usd != null ? Number(plans[key].price_usd).toFixed(2) : '—',
+    features: REGULAR_PLAN_FEATURES[key],
+  }));
+  const PREMIUM_PLANS = [
+    { key: 'lifetime', label: PREMIUM_PLAN_LABELS.lifetime, price: plans.lifetime?.price_usd != null ? Number(plans.lifetime.price_usd).toFixed(2) : '—', features: PREMIUM_PLAN_FEATURES.lifetime, oneTime: true },
+    { key: 'enterprise', label: PREMIUM_PLAN_LABELS.enterprise, price: 'Custom', features: PREMIUM_PLAN_FEATURES.enterprise, custom: true },
+  ];
 
   const handleUpgrade = (planKey) => navigate(`/checkout?plan=${planKey}`);
 

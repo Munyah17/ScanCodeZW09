@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { usePlans } from '../context/PlansContext';
 import DashLayout from '../components/DashLayout';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -40,8 +41,6 @@ function bucketByWeek(records, dateKey, valueKey) {
   }
   return Object.entries(buckets).map(([date, value]) => ({ date, value }));
 }
-
-const PLAN_PRICES = { starter: 5.90, business: 16.90, pro: 29.90, lifetime: 129.99, enterprise: 0 };
 
 function periodLabel(filter, data) {
   if (!data?.length) return '';
@@ -139,6 +138,7 @@ function TopBar({ filter, onChange }) {
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user }  = useAuth();
+  const { plans } = usePlans();
   const [filter,  setFilter]  = useState('All Time');
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -176,7 +176,7 @@ export default function Dashboard() {
         p.subscription_type && p.subscription_type !== 'starter' &&
         (!p.subscription_end_date || new Date(p.subscription_end_date) > new Date())
       );
-      const mrr = activeSubs.reduce((s, p) => s + (PLAN_PRICES[p.subscription_type] ?? 0), 0);
+      const mrr = activeSubs.reduce((s, p) => s + Number(plans[p.subscription_type]?.price_usd ?? 0), 0);
 
       const revenueChart = bucketByWeek(payments, 'created_at', 'amount_usd');
       const mrrChart     = revenueChart.map(r => ({ ...r, value: r.value > 0 ? r.value * 0.48 : 0 }));
@@ -204,7 +204,7 @@ export default function Dashboard() {
     }
 
     setLoading(false);
-  }, [user, filter, isAdmin]);
+  }, [user, filter, isAdmin, plans]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -1090,7 +1090,7 @@ function ConfigurationsTab({ token }) {
       </div>
 
       <button className="dp-btn dp-btn-primary" disabled={saving} onClick={() => save(draft)}>
-        {saving ? 'Saving…' : 'Save Configuration'}
+        {saving ? 'Saving…' : 'Save'}
       </button>
     </>
   );
@@ -1151,7 +1151,7 @@ function SettingsTab({ token }) {
         </div>
       </div>
       <button className="dp-btn dp-btn-primary" disabled={saving} onClick={() => save(draft)}>
-        {saving ? 'Saving…' : 'Save Settings'}
+        {saving ? 'Saving…' : 'Save'}
       </button>
     </>
   );

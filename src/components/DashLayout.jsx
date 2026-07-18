@@ -172,9 +172,9 @@ const Ic = {
 // ── Plan → sub-user limits ────────────────────────────────────────────────────
 export const PLAN_LIMITS = {
   free:       { products: 1,   variations: 1,   subUsers: 0,  apiAccess: false, label: 'Free Trial', price: '$0' },
-  starter:    { products: 3,   variations: 3,   subUsers: 0,  apiAccess: false, label: 'Starter',    price: '$4.79' },
-  business:   { products: 20,  variations: 15,  subUsers: 2,  apiAccess: false, label: 'Business',   price: '$11.99' },
-  pro:        { products: 100, variations: 50,  subUsers: 10, apiAccess: true,  label: 'Pro',         price: '$24.99' },
+  starter:    { products: 3,   variations: 3,   subUsers: 0,  apiAccess: false, label: 'Starter',    price: '$5.90' },
+  business:   { products: 20,  variations: 15,  subUsers: 2,  apiAccess: false, label: 'Business',   price: '$16.90' },
+  pro:        { products: 100, variations: 50,  subUsers: 10, apiAccess: true,  label: 'Pro',         price: '$29.90' },
   lifetime:   { products: -1,  variations: -1,  subUsers: -1, apiAccess: true,  label: 'Lifetime',   price: '$129.99' },
   enterprise: { products: -1,  variations: -1,  subUsers: -1, apiAccess: true,  label: 'Enterprise', price: 'Custom' },
 };

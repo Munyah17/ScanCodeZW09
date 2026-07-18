@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { usePlans } from '../context/PlansContext';
 
 const FEATURES = [
   { icon: 'fas fa-barcode',    title: 'EAN-13 & UPC-A Barcodes',      desc: 'Generate GS1-compliant barcodes for every product variation. Correct check digits, correct prefixes.' },
@@ -10,22 +11,29 @@ const FEATURES = [
   { icon: 'fas fa-shield-alt', title: 'Secure & Compliant',            desc: 'All barcodes are stored securely. Role-based access, audit logs, and GS1 compliance built in.' },
 ];
 
-const PLANS = [
+// Feature copy is hand-written marketing text; price comes live from
+// subscription_plans via usePlans() below, so a price set in the Super
+// Admin Pricing tab shows up here immediately.
+const PLAN_COPY = [
   {
-    name: 'Starter', price: '5.90', popular: false,
+    key: 'starter', name: 'Starter', popular: false,
     features: ['3 products', '3 variations / product', 'EAN-13 & UPC-A', 'QR code generation', 'PNG & PDF downloads', 'Email support'],
   },
   {
-    name: 'Business', price: '16.90', popular: true,
+    key: 'business', name: 'Business', popular: true,
     features: ['20 products', '15 variations / product', 'All barcode formats', 'Custom branding on exports', 'Priority email support', 'Advanced exports'],
   },
   {
-    name: 'Pro', price: '29.90', popular: false,
+    key: 'pro', name: 'Pro', popular: false,
     features: ['100 products', '50 variations / product', 'All formats + API access', '24/7 phone & email support', 'Advanced analytics', 'Multi-country switching'],
   },
 ];
 
 export default function Landing() {
+  const { plans } = usePlans();
+  const price = (key) => plans[key]?.price_usd != null ? Number(plans[key].price_usd).toFixed(2) : '—';
+  const PLANS = PLAN_COPY.map(p => ({ ...p, price: price(p.key) }));
+
   return (
     <Layout>
       <main className="landing-page">
@@ -76,6 +84,49 @@ export default function Landing() {
         <section id="pricing" className="pricing-section">
           <h2>Simple, transparent pricing.</h2>
           <p className="section-subtitle">No hidden fees. No long-term contracts. Upgrade whenever you need more.</p>
+
+          {/* ── Once in a While Use ── */}
+          <div style={{ marginBottom: '3rem' }}>
+            <h3 style={{ textAlign: 'center', marginBottom: '0.4rem' }}>Once in a While Use</h3>
+            <p className="section-subtitle" style={{ marginBottom: '1.5rem' }}>
+              No subscription needed. For businesses that only need a barcode here and there — pay per generation, credits are applied instantly and never expire.
+            </p>
+            <div className="extra-plans-grid extra-plans-grid-3">
+              <div className="extra-plan-card" style={{ background: 'linear-gradient(145deg, #1e293b, #162032)', borderColor: '#38bdf8' }}>
+                <div className="extra-plan-icon" style={{ color: '#38bdf8' }}><i className="fas fa-barcode"></i></div>
+                <h3>Single Generation</h3>
+                <p className="extra-plan-tag" style={{ background: 'rgba(56,189,248,0.15)', color: '#7dd3fc' }}>Pay Per Use</p>
+                <div className="extra-plan-price">${price('otg_single')} <span>/ barcode</span></div>
+                <p className="extra-plan-desc">Generate one unique GS1-compliant barcode. Includes EAN-13 or UPC-A, PNG download at 38mm / 300 DPI, and QR code.</p>
+                <Link to="/register?plan=otg_single" className="btn btn-block" style={{ marginTop: 'auto', background: '#0ea5e9', color: '#fff', border: 'none' }}>
+                  Buy 1 Barcode — ${price('otg_single')}
+                </Link>
+              </div>
+
+              <div className="extra-plan-card" style={{ background: 'linear-gradient(145deg, #1e293b, #1a2510)', borderColor: '#86efac' }}>
+                <div className="extra-plan-icon" style={{ color: '#86efac' }}><i className="fas fa-layer-group"></i></div>
+                <h3>Bundle — 3 Barcodes</h3>
+                <p className="extra-plan-tag" style={{ background: 'rgba(134,239,172,0.15)', color: '#86efac' }}>Best Value</p>
+                <div className="extra-plan-price">${price('otg_triple')} <span>/ 3 barcodes</span></div>
+                <p className="extra-plan-desc">Generate three unique barcodes in one payment. Each gets its own GS1-compliant number, PNG export, and QR code.</p>
+                <Link to="/register?plan=otg_triple" className="btn btn-block btn-primary" style={{ marginTop: 'auto' }}>
+                  Buy 3 Barcodes — ${price('otg_triple')}
+                </Link>
+              </div>
+
+              <div className="extra-plan-card" style={{ background: 'linear-gradient(145deg, #1e293b, #241a30)', borderColor: '#c4b5fd' }}>
+                <div className="extra-plan-icon" style={{ color: '#c4b5fd' }}><i className="fas fa-boxes-stacked"></i></div>
+                <h3>Bundle — 10 Barcodes</h3>
+                <p className="extra-plan-tag" style={{ background: 'rgba(196,181,253,0.15)', color: '#c4b5fd' }}>Biggest Savings</p>
+                <div className="extra-plan-price">${price('otg_ten')} <span>/ 10 barcodes</span></div>
+                <p className="extra-plan-desc">Generate ten unique barcodes in one payment. Ideal for a seasonal batch of new products.</p>
+                <Link to="/register?plan=otg_ten" className="btn btn-block" style={{ marginTop: 'auto', background: '#8b5cf6', color: '#fff', border: 'none' }}>
+                  Buy 10 Barcodes — ${price('otg_ten')}
+                </Link>
+              </div>
+            </div>
+          </div>
+
           <div className="pricing-grid">
             {PLANS.map(plan => (
               <div key={plan.name} className={`pricing-card${plan.popular ? ' popular' : ''}`}>
@@ -117,7 +168,7 @@ export default function Landing() {
               <div className="extra-plan-icon"><i className="fas fa-gem"></i></div>
               <h3>Lifetime Access</h3>
               <p className="extra-plan-tag">One-Off Payment</p>
-              <div className="extra-plan-price">$99 <span>once</span></div>
+              <div className="extra-plan-price">${price('lifetime')} <span>once</span></div>
               <p className="extra-plan-desc">Pay once, use forever. Everything in the Business plan — no recurring fees, no expiry.</p>
               <ul className="extra-plan-features">
                 <li><i className="fas fa-check"></i> All Business plan features</li>

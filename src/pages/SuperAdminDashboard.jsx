@@ -32,7 +32,7 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <DashLayout active="home" title="CEO Control Panel - Super Admin">
+    <DashLayout active="home" title="Super Admin">
       {loading ? (
         <div className="dp-loading"><div className="dp-spinner" /></div>
       ) : (

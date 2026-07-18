@@ -44,6 +44,7 @@ import keysList from "./_handlers/keys-list.js";
 import keysRevoke from "./_handlers/keys-revoke.js";
 import paymentsStatus from "./_handlers/payments-status.js";
 import paynowCallback from "./_handlers/paynow-callback.js";
+import plansPublic from "./_handlers/plans-public.js";
 import paynowInitiate from "./_handlers/paynow-initiate.js";
 import productsCatalog from "./_handlers/products-catalog.js";
 import productsVariations from "./_handlers/products-variations.js";
@@ -107,6 +108,7 @@ const routes = {
   "/api/keys/revoke": keysRevoke,
   "/api/payments/status": paymentsStatus,
   "/api/paynow/callback": paynowCallback,
+  "/api/plans/list": plansPublic,
   "/api/paynow/initiate": paynowInitiate,
   "/api/products/catalog": productsCatalog,
   "/api/products/variations": productsVariations,
